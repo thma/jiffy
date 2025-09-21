@@ -1,6 +1,5 @@
 package org.jiffy.processor;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
@@ -26,30 +25,12 @@ public class EffectAnalyzer {
     public Set<String> findUsedEffects(ExecutableElement method) {
         Set<String> effects = new HashSet<>();
 
-        // For this simplified version, we'll analyze based on method name patterns
-        // and return type. A full implementation would parse the method body.
-        String methodName = method.getSimpleName().toString();
-
-        // Check common patterns
-        if (methodName.contains("log") || methodName.contains("Log")) {
-            effects.add("LogEffect");
-        }
-        if (methodName.contains("order") || methodName.contains("Order")) {
-            effects.add("OrderRepositoryEffect");
-        }
-        if (methodName.contains("return") || methodName.contains("Return")) {
-            effects.add("ReturnRepositoryEffect");
-        }
-
         // Check if method returns Eff type
         TypeMirror returnType = method.getReturnType();
         if (isEffType(returnType)) {
             // Analyze based on method name and parameters
             analyzeEffMethod(method, effects);
         }
-
-        // Check for transitive effects from called methods
-        // (In a full implementation, would analyze method body for method calls)
 
         return effects;
     }
@@ -65,28 +46,9 @@ public class EffectAnalyzer {
     }
 
     private void analyzeEffMethod(ExecutableElement method, Set<String> effects) {
-        // Analyze based on method signature and name
-        String methodName = method.getSimpleName().toString();
+        //TODO descend method AST and collect all effects
 
-        // Common naming patterns
-        if (methodName.equals("getOrders") || methodName.equals("findOrders")) {
-            effects.add("OrderRepositoryEffect");
-        }
-        if (methodName.equals("getReturns") || methodName.equals("findReturns")) {
-            effects.add("ReturnRepositoryEffect");
-        }
-        if (methodName.startsWith("log")) {
-            effects.add("LogEffect");
-        }
-
-        // Check for calculateScore pattern - any method that calculates scores
-        if (methodName.contains("calculateScore") ||
-            methodName.equals("calculateScoreWithRecovery") ||
-            methodName.equals("calculateScoreSequential")) {
-            effects.add("LogEffect");
-            effects.add("OrderRepositoryEffect");
-            effects.add("ReturnRepositoryEffect");
-        }
+        // maybe we could use Eff.collectEffects ?
     }
 
     /**
