@@ -17,14 +17,7 @@ import java.util.*;
  */
 public class EffectAnalyzer {
 
-    private final ProcessingEnvironment processingEnv;
-    private final Types typeUtils;
-    private final Elements elementUtils;
-
     public EffectAnalyzer(ProcessingEnvironment processingEnv) {
-        this.processingEnv = processingEnv;
-        this.typeUtils = processingEnv.getTypeUtils();
-        this.elementUtils = processingEnv.getElementUtils();
     }
 
     /**
