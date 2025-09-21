@@ -58,7 +58,6 @@ public abstract class Eff<A> {
     /**
      * Sequence multiple effects, discarding intermediate results.
      */
-    @SafeVarargs
     public static <A> Eff<A> sequence(Eff<?>... effects) {
         if (effects.length == 0) {
             return pure(null);
