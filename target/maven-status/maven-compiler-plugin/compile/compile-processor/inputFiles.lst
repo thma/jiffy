@@ -1,0 +1,8 @@
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/annotations/Provides.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/annotations/Uses.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/processor/EffectProcessor.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/annotations/UncheckedEffects.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/processor/EffectAnalyzer.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/core/Effect.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/annotations/Pure.java
+/Users/thomas.mahler/code/jiffy/src/main/java/org/jiffy/annotations/EffectGroup.java
