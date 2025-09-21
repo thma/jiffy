@@ -292,13 +292,15 @@ public abstract class Eff<A> {
     }
 
     private void collectEffectsInternal(List<Effect<?>> effects) {
-        if (this instanceof Perform<?> perform) {
-            effects.add(perform.getEffect());
-        } else if (this instanceof FlatMap<?, ?> flatMap) {
-            flatMap.source.collectEffectsInternal(effects);
-        } else if (this instanceof Parallel<?, ?> parallel) {
-            parallel.effA.collectEffectsInternal(effects);
-            parallel.effB.collectEffectsInternal(effects);
+        switch (this) {
+            case Perform<?> perform -> effects.add(perform.getEffect());
+            case FlatMap<?, ?> flatMap -> flatMap.source.collectEffectsInternal(effects);
+            case Parallel<?, ?> parallel -> {
+                parallel.effA.collectEffectsInternal(effects);
+                parallel.effB.collectEffectsInternal(effects);
+            }
+            default -> {
+            }
         }
     }
 }
