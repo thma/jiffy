@@ -33,7 +33,7 @@ public class EffectProcessor extends AbstractProcessor {
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.messager = processingEnv.getMessager();
-        this.analyzer = new EffectAnalyzer(processingEnv);
+        this.analyzer = new EffectAnalyzer();
     }
 
     @Override
