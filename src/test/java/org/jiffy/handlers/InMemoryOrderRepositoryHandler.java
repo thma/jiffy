@@ -38,17 +38,17 @@ public class InMemoryOrderRepositoryHandler implements EffectHandler<OrderReposi
     @Override
     @SuppressWarnings("unchecked")
     public <T> T handle(OrderRepositoryEffect<?> effect) {
-        if (effect instanceof OrderRepositoryEffect.FindByCustomerId findByCustomerId) {
-            return (T) findByCustomerId(findByCustomerId.customerId());
-        } else if (effect instanceof OrderRepositoryEffect.FindById findById) {
-            return (T) findById(findById.orderId());
-        } else if (effect instanceof OrderRepositoryEffect.Save save) {
-            return (T) save(save.order());
-        } else if (effect instanceof OrderRepositoryEffect.DeleteById deleteById) {
-            deleteById(deleteById.orderId());
+        if (effect instanceof OrderRepositoryEffect.FindByCustomerId(Long customerId)) {
+            return (T) findByCustomerId(customerId);
+        } else if (effect instanceof OrderRepositoryEffect.FindById(Long orderId)) {
+            return (T) findById(orderId);
+        } else if (effect instanceof OrderRepositoryEffect.Save(Order order)) {
+            return (T) save(order);
+        } else if (effect instanceof OrderRepositoryEffect.DeleteById(Long orderId)) {
+            deleteById(orderId);
             return null;
-        } else if (effect instanceof OrderRepositoryEffect.CountByCustomerId countByCustomerId) {
-            return (T) countByCustomerId(countByCustomerId.customerId());
+        } else if (effect instanceof OrderRepositoryEffect.CountByCustomerId(Long customerId)) {
+            return (T) countByCustomerId(customerId);
         }
         throw new IllegalArgumentException("Unknown effect: " + effect);
     }

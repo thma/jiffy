@@ -17,14 +17,14 @@ public class CollectingLogHandler implements EffectHandler<LogEffect> {
 
     @Override
     public <T> T handle(LogEffect effect) {
-        if (effect instanceof LogEffect.Info info) {
-            logs.add(new LogEntry(LogLevel.INFO, info.message(), null));
-        } else if (effect instanceof LogEffect.Error error) {
-            logs.add(new LogEntry(LogLevel.ERROR, error.message(), error.error()));
-        } else if (effect instanceof LogEffect.Warning warning) {
-            logs.add(new LogEntry(LogLevel.WARNING, warning.message(), null));
-        } else if (effect instanceof LogEffect.Debug debug) {
-            logs.add(new LogEntry(LogLevel.DEBUG, debug.message(), null));
+        if (effect instanceof LogEffect.Info(String message)) {
+            logs.add(new LogEntry(LogLevel.INFO, message, null));
+        } else if (effect instanceof LogEffect.Error(String message, Throwable error)) {
+            logs.add(new LogEntry(LogLevel.ERROR, message, error));
+        } else if (effect instanceof LogEffect.Warning(String message)) {
+            logs.add(new LogEntry(LogLevel.WARNING, message, null));
+        } else if (effect instanceof LogEffect.Debug(String message)) {
+            logs.add(new LogEntry(LogLevel.DEBUG, message, null));
         }
         return null; // LogEffect always returns Void
     }
