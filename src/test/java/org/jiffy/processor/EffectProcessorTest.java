@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Test cases for the effect annotation processor logic.
  * These tests verify the pattern-based effect detection logic.
- *
  * Note: Full annotation processor testing would require a compilation testing framework.
  * These tests focus on the core logic that can be tested without ProcessingEnvironment.
  */

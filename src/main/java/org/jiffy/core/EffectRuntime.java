@@ -22,7 +22,7 @@ public class EffectRuntime {
         Class<?> effectClass = effect.getClass();
 
         // Find the most specific handler
-        EffectHandler handler = findHandler(effectClass);
+        EffectHandler<Effect<T>> handler = (EffectHandler<Effect<T>>) findHandler(effectClass);
 
         if (handler == null) {
             throw new IllegalStateException("No handler registered for effect: " + effectClass.getName());

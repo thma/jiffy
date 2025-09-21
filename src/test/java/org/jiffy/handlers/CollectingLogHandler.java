@@ -16,7 +16,6 @@ public class CollectingLogHandler implements EffectHandler<LogEffect> {
     private final List<LogEntry> logs = new ArrayList<>();
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T handle(LogEffect effect) {
         if (effect instanceof LogEffect.Info info) {
             logs.add(new LogEntry(LogLevel.INFO, info.message(), null));

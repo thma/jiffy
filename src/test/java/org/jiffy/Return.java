@@ -5,10 +5,10 @@ import java.time.LocalDate;
 
 public class Return {
   private final Long id;
-  private Long orderId;
-  private String reason;
+  private final Long orderId;
+  private final String reason;
   private final LocalDate createdAt;
-  private BigDecimal amount;
+  private final BigDecimal amount;
 
   public Return(Long id, Long orderId, String reason, LocalDate createdAt, BigDecimal amount) {
     this.id = id;
