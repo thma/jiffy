@@ -45,9 +45,9 @@ public class AnnotatedEffectsIntegrationTest {
         logHandler = new CollectingLogHandler();
 
         runtime = EffectRuntime.builder()
-            .withHandlerUnsafe(LogEffect.class, logHandler)
-            .withHandlerUnsafe(OrderRepositoryEffect.FindByCustomerId.class, orderHandler)
-            .withHandlerUnsafe(ReturnRepositoryEffect.FindByCustomerId.class, returnHandler)
+            .withHandler(LogEffect.class, logHandler)
+            .withHandler(OrderRepositoryEffect.FindByCustomerId.class, orderHandler)
+            .withHandler(ReturnRepositoryEffect.FindByCustomerId.class, returnHandler)
             .build();
     }
 

@@ -69,8 +69,8 @@ public class AnnotationValidationTest {
      */
     @Provides(LogEffect.class)
     public void handleLogEffect(LogEffect effect) {
-        if (effect instanceof LogEffect.Info info) {
-            System.out.println("[INFO] " + info.message());
+        if (effect instanceof LogEffect.Info(String message)) {
+            System.out.println("[INFO] " + message);
         }
     }
 

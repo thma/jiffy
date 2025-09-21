@@ -184,14 +184,10 @@ public class EffectProcessor extends AbstractProcessor {
     }
 
     private Diagnostic.Kind getDiagnosticKind(Uses.Level level) {
-        switch (level) {
-            case ERROR:
-                return Diagnostic.Kind.ERROR;
-            case WARNING:
-                return Diagnostic.Kind.WARNING;
-            case INFO:
-            default:
-                return Diagnostic.Kind.NOTE;
-        }
+        return switch (level) {
+            case ERROR -> Diagnostic.Kind.ERROR;
+            case WARNING -> Diagnostic.Kind.WARNING;
+            default -> Diagnostic.Kind.NOTE;
+        };
     }
 }

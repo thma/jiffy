@@ -27,8 +27,7 @@ public class EffectRuntime {
         if (handler == null) {
             throw new IllegalStateException("No handler registered for effect: " + effectClass.getName());
         }
-
-        return (T) handler.handle(effect);
+        return handler.handle(effect);
     }
 
     private EffectHandler<?> findHandler(Class<?> effectClass) {
@@ -49,9 +48,7 @@ public class EffectRuntime {
         Class<?> enclosing = effectClass.getEnclosingClass();
         if (enclosing != null) {
             handler = handlers.get(enclosing);
-            if (handler != null) {
-                return handler;
-            }
+            return handler;
         }
 
         return null;

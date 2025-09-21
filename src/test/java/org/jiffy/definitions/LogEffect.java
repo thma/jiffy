@@ -15,12 +15,7 @@ public sealed interface LogEffect extends Effect<Void> {
     /**
      * Log an error message with an optional throwable.
      */
-    record Error(String message, Throwable error) implements LogEffect {
-        // Constructor with just message
-        public Error(String message) {
-            this(message, null);
-        }
-    }
+    record Error(String message, Throwable error) implements LogEffect {}
 
     /**
      * Log a warning message.

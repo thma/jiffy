@@ -37,8 +37,8 @@ public class SimpleEffectTest {
             new Order(1L, new BigDecimal("100.00")),
             new Order(2L, new BigDecimal("200.00"))
         );
-        List<Return> returns = Arrays.asList(
-            new Return(1L, 1L, "Damaged", LocalDate.now(), new BigDecimal("50.00"))
+        List<Return> returns = List.of(
+                new Return(1L, 1L, "Damaged", LocalDate.now(), new BigDecimal("50.00"))
         );
 
         orderHandler.addOrdersForCustomer(customerId, orders);
