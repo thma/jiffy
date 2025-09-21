@@ -3,10 +3,6 @@ package org.jiffy.annotations;
 import org.jiffy.Customer;
 import org.jiffy.Order;
 import org.jiffy.Return;
-import org.jiffy.annotations.Provides;
-import org.jiffy.annotations.Pure;
-import org.jiffy.annotations.UncheckedEffects;
-import org.jiffy.annotations.Uses;
 import org.jiffy.core.Eff;
 import org.jiffy.definitions.LogEffect;
 import org.jiffy.definitions.OrderRepositoryEffect;
@@ -121,8 +117,7 @@ public class AnnotationValidationTest {
             var method = this.getClass().getMethod("logOnlyMethod", String.class);
             Uses uses = method.getAnnotation(Uses.class);
 
-            boolean hasLogging = Arrays.stream(uses.value())
-                .anyMatch(effect -> effect.equals(LogEffect.class));
+            boolean hasLogging = Arrays.asList(uses.value()).contains(LogEffect.class);
 
             assertTrue(hasLogging, "Method should have logging effect");
 
@@ -145,8 +140,8 @@ public class AnnotationValidationTest {
             new Order(2L, new BigDecimal("200"))
         );
 
-        List<Return> returns = Arrays.asList(
-            new Return(1L, 1L, "Damaged", LocalDate.now(), new BigDecimal("50"))
+        List<Return> returns = List.of(
+                new Return(1L, 1L, "Damaged", LocalDate.now(), new BigDecimal("50"))
         );
 
         // This should work without any effects

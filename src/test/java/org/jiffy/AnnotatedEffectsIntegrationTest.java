@@ -245,8 +245,7 @@ public class AnnotatedEffectsIntegrationTest {
 
     private void verifyEffectsWereUsed() {
         // Verify that all declared effects were actually used
-        assertTrue(logHandler.getFormattedLogs().size() > 0,
-            "Log effects should have been used");
+        assertFalse(logHandler.getFormattedLogs().isEmpty(), "Log effects should have been used");
 
         boolean hasCalculatingLog = logHandler.getFormattedLogs().stream()
             .anyMatch(log -> log.contains("Calculating score"));

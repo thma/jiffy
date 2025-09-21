@@ -1,6 +1,5 @@
 package org.jiffy;
 
-import org.jiffy.CustomerScoreUseCaseEffects;
 import org.jiffy.annotations.Uses;
 import org.jiffy.core.Eff;
 import org.jiffy.core.EffectRuntime;
@@ -10,8 +9,6 @@ import org.jiffy.definitions.ReturnRepositoryEffect;
 import org.jiffy.handlers.CollectingLogHandler;
 import org.jiffy.handlers.InMemoryOrderRepositoryHandler;
 import org.jiffy.handlers.InMemoryReturnRepositoryHandler;
-import org.jiffy.Order;
-import org.jiffy.Return;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

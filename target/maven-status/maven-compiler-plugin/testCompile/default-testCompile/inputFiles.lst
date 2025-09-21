@@ -1,0 +1,15 @@
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/Customer.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/Return.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/Order.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/annotations/AnnotationValidationTest.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/definitions/LogEffect.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/handlers/InMemoryOrderRepositoryHandler.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/handlers/InMemoryReturnRepositoryHandler.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/handlers/CollectingLogHandler.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/processor/EffectProcessorTest.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/definitions/OrderRepositoryEffect.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/AnnotatedEffectsIntegrationTest.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/SimpleEffectTest.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/CustomerScoreUseCaseEffectsTest.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/CustomerScoreUseCaseEffects.java
+/Users/thomas.mahler/code/jiffy/src/test/java/org/jiffy/definitions/ReturnRepositoryEffect.java

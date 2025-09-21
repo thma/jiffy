@@ -12,7 +12,6 @@ import java.lang.annotation.*;
  * @Retention(RetentionPolicy.CLASS)
  * @Target(ElementType.METHOD)
  * public @interface Observability {}
- *
  * // Usage:
  * @Uses(Observability.class)
  * public void method() { }
