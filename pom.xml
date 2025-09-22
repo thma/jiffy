@@ -14,7 +14,8 @@
     <description>Algebraic Effects Library for Java with compile-time effect checking</description>
 
     <properties>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.0</junit.version>
     </properties>
@@ -40,6 +41,14 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Compile testing for annotation processor testing -->
+        <dependency>
+            <groupId>com.google.testing.compile</groupId>
+            <artifactId>compile-testing</artifactId>
+            <version>0.21.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -57,13 +66,18 @@
                             <goal>compile</goal>
                         </goals>
                         <configuration>
-                            <release>21</release>
+                            <source>21</source>
+                            <target>21</target>
                             <proc>none</proc>
                             <includes>
                                 <include>**/processor/**</include>
                                 <include>**/annotations/**</include>
                                 <include>**/core/Effect.java</include>
                             </includes>
+                            <compilerArgs>
+                                <arg>--add-exports=jdk.compiler/com.sun.source.tree=ALL-UNNAMED</arg>
+                                <arg>--add-exports=jdk.compiler/com.sun.source.util=ALL-UNNAMED</arg>
+                            </compilerArgs>
                         </configuration>
                     </execution>
 
@@ -75,13 +89,18 @@
                             <goal>compile</goal>
                         </goals>
                         <configuration>
-                            <release>21</release>
+                            <source>21</source>
+                            <target>21</target>
                             <annotationProcessors>
                                 <processor>org.jiffy.processor.EffectProcessor</processor>
                             </annotationProcessors>
                             <excludes>
                                 <exclude>**/processor/**</exclude>
                             </excludes>
+                            <compilerArgs>
+                                <arg>--add-exports=jdk.compiler/com.sun.source.tree=ALL-UNNAMED</arg>
+                                <arg>--add-exports=jdk.compiler/com.sun.source.util=ALL-UNNAMED</arg>
+                            </compilerArgs>
                         </configuration>
                     </execution>
                 </executions>
@@ -120,6 +139,27 @@
                         <id>attach-javadocs</id>
                         <goals>
                             <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- JaCoCo for code coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
                         </goals>
                     </execution>
                 </executions>
