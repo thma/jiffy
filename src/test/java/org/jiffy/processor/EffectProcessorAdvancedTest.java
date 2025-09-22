@@ -6,7 +6,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 
 import javax.tools.JavaFileObject;
-import javax.tools.Diagnostic;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static org.jiffy.processor.EffectAnalyzerTestHelper.*;

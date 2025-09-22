@@ -6,7 +6,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 
 import javax.tools.JavaFileObject;
-import javax.tools.Diagnostic;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static org.jiffy.processor.EffectAnalyzerTestHelper.*;
@@ -47,10 +46,6 @@ public class EffectProcessorCoverageTest {
 
             Compilation compilation = compile(source);
             assertThat(compilation).succeeded();
-            // INFO level should produce NOTE messages if processor reports them
-            boolean hasNote = compilation.diagnostics().stream()
-                .anyMatch(d -> d.getKind() == Diagnostic.Kind.NOTE);
-            // Note: In test environment, INFO might not produce visible diagnostics
         }
 
         @Test
