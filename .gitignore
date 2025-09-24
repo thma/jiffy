@@ -1,4 +1,9 @@
-target/
-.claude
-.idea
-CL*
+/.classpath
+/.idea
+/.vscode
+/.project
+/.settings
+/target
+/.project
+/.DS_Store
+CL*.md
