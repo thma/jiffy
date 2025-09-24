@@ -1,7 +1,6 @@
 package org.jiffy.processor;
 
 import org.jiffy.annotations.Pure;
-import org.jiffy.annotations.UncheckedEffects;
 import org.jiffy.annotations.Uses;
 
 import javax.annotation.processing.*;
@@ -88,22 +87,11 @@ public class EffectProcessor extends AbstractProcessor {
         Set<String> undeclaredEffects = new HashSet<>(usedEffects);
         undeclaredEffects.removeAll(declaredEffects);
 
-        // Check if method has @UncheckedEffects
-        if (hasUncheckedEffects(method)) {
-            UncheckedEffects unchecked = method.getAnnotation(UncheckedEffects.class);
-            if (isWildcardUnchecked(unchecked)) {
-                // Wildcard - all effects are allowed
-                undeclaredEffects.clear();
-            } else {
-                Set<String> allowedUnchecked = getAllowedUncheckedEffects(unchecked);
-                undeclaredEffects.removeAll(allowedUnchecked);
-            }
-        }
 
         // Report violations
         if (!undeclaredEffects.isEmpty()) {
             String message = String.format(
-                "Method '%s' uses undeclared effects: %s. Add them to @Uses annotation or mark with @UncheckedEffects",
+                "Method '%s' uses undeclared effects: %s. Add them to @Uses annotation",
                 method.getSimpleName(),
                 undeclaredEffects
             );
@@ -177,12 +165,6 @@ public class EffectProcessor extends AbstractProcessor {
                         continue;
                     }
 
-                    // Skip if method has @UncheckedEffects with wildcard (allows all)
-                    UncheckedEffects unchecked = method.getAnnotation(UncheckedEffects.class);
-                    if (unchecked != null && isWildcardUnchecked(unchecked)) {
-                        continue; // Wildcard - allows all effects
-                    }
-
                     // Check if method returns Eff type
                     if (isEffReturnType(method)) {
                         // Check if this method uses any effects
@@ -190,15 +172,11 @@ public class EffectProcessor extends AbstractProcessor {
 
                         if (!usedEffects.isEmpty()) {
                             // Method uses effects but has no @Uses declaration!
-                            Set<String> allowedUnchecked = unchecked != null ?
-                                getAllowedUncheckedEffects(unchecked) : Collections.emptySet();
-
                             Set<String> undeclaredEffects = new HashSet<>(usedEffects);
-                            undeclaredEffects.removeAll(allowedUnchecked);
 
                             if (!undeclaredEffects.isEmpty()) {
                                 String message = String.format(
-                                    "Method '%s' uses undeclared effects: %s. Add them to @Uses annotation or mark with @UncheckedEffects",
+                                    "Method '%s' uses undeclared effects: %s. Add them to @Uses annotation",
                                     method.getSimpleName(),
                                     undeclaredEffects
                                 );
@@ -220,18 +198,6 @@ public class EffectProcessor extends AbstractProcessor {
         return returnType.contains("Eff<") || returnType.equals("Eff");
     }
 
-    /**
-     * Check if @UncheckedEffects is a wildcard (empty array)
-     */
-    private boolean isWildcardUnchecked(UncheckedEffects unchecked) {
-        try {
-            Class<?>[] effects = unchecked.value();
-            return effects.length == 0;
-        } catch (MirroredTypesException e) {
-            // During annotation processing, this exception is expected
-            return e.getTypeMirrors().isEmpty();
-        }
-    }
 
     private Set<String> getDeclaredEffects(Uses uses) {
         Set<String> effects = new HashSet<>();
@@ -251,35 +217,6 @@ public class EffectProcessor extends AbstractProcessor {
         return effects;
     }
 
-    private boolean hasUncheckedEffects(ExecutableElement method) {
-        return method.getAnnotation(UncheckedEffects.class) != null;
-    }
-
-    private Set<String> getAllowedUncheckedEffects(UncheckedEffects unchecked) {
-        Set<String> effects = new HashSet<>();
-        try {
-            if (unchecked.value().length == 0) {
-                // All effects are unchecked
-                effects.add("*");
-            } else {
-                for (Class<?> effectClass : unchecked.value()) {
-                    effects.add(effectClass.getSimpleName());
-                }
-            }
-        } catch (MirroredTypesException e) {
-            // During annotation processing, we get TypeMirrors instead of Classes
-            if (e.getTypeMirrors().isEmpty()) {
-                effects.add("*");
-            } else {
-                for (TypeMirror typeMirror : e.getTypeMirrors()) {
-                    String fullName = typeMirror.toString();
-                    String simpleName = fullName.substring(fullName.lastIndexOf('.') + 1);
-                    effects.add(simpleName);
-                }
-            }
-        }
-        return effects;
-    }
 
     private Diagnostic.Kind getDiagnosticKind(Uses.Level level) {
         return switch (level) {

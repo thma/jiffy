@@ -52,27 +52,7 @@ public class AnnotationValidationTest {
         return log(new LogEffect.Info(message));
     }
 
-    /**
-     * Method with unchecked effects for legacy code.
-     */
-    @UncheckedEffects(
-        justification = "Legacy method, will be refactored in JIRA-1234",
-        ticket = "JIRA-1234"
-    )
-    public void legacyMethod() {
-        // Direct database calls without effect tracking
-        System.out.println("Legacy database operation");
-    }
 
-    /**
-     * Method that provides/handles an effect.
-     */
-    @Provides(LogEffect.class)
-    public void handleLogEffect(LogEffect effect) {
-        if (effect instanceof LogEffect.Info(String message)) {
-            System.out.println("[INFO] " + message);
-        }
-    }
 
     // Helper methods
     @Uses(LogEffect.class)
@@ -150,28 +130,4 @@ public class AnnotationValidationTest {
         assertTrue(score >= 0 && score <= 100, "Score should be valid");
     }
 
-    /**
-     * This class demonstrates compilation errors (commented out).
-     * In a real scenario with the annotation processor, these would fail to compile.
-     */
-    static class CompilationErrorExamples {
-
-        // This would cause a compilation error: LogEffect not declared
-        // @Uses({})  // Missing LogEffect!
-        // public Eff<Void> missingEffectDeclaration() {
-        //     return Eff.perform(new LogEffect.Info("This will fail"));
-        // }
-
-        // This would cause a compilation error: marked Pure but uses effects
-        // @Pure
-        // public Eff<Void> invalidPureMethod() {
-        //     return Eff.perform(new LogEffect.Info("Not pure!"));
-        // }
-
-        // This would cause a warning: declared but unused effect
-        // @Uses({LogEffect.class, OrderRepositoryEffect.class})  // OrderRepo not used
-        // public Eff<Void> unusedEffectDeclaration() {
-        //     return Eff.perform(new LogEffect.Info("Only uses log"));
-        // }
-    }
 }
