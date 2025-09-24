@@ -234,6 +234,7 @@ public class EffectAnalyzer {
 
             // Extract method name being called
             ExpressionTree methodSelect = node.getMethodSelect();
+            // TODO: In the future, we should resolve the actual method element
             String methodName = null;
 
             if (methodSelect instanceof MemberSelectTree memberSelect) {
