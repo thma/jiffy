@@ -7,8 +7,11 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.MirroredTypesException;
 import javax.tools.Diagnostic;
 import java.util.*;
+import org.jiffy.annotations.Uses;
+import org.jiffy.annotations.Pure;
 
 /**
  * Analyzes methods to find which effects they use.
@@ -23,12 +26,11 @@ public class EffectAnalyzer {
     private final Trees trees;
     private final Map<String, Set<String>> methodEffectCache;
     private final ProcessingEnvironment processingEnv;
+    private final ThreadLocal<Set<String>> analysisStack = new ThreadLocal<>();
 
     public EffectAnalyzer(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
         this.trees = Trees.instance(processingEnv);
-        //Elements elements = processingEnv.getElementUtils();
-        //Types types = processingEnv.getTypeUtils();
         this.methodEffectCache = new HashMap<>();
     }
 
@@ -38,32 +40,55 @@ public class EffectAnalyzer {
      * those in lambda expressions and direct Eff.perform calls.
      */
     public Set<String> findUsedEffects(ExecutableElement method) {
-        // Check cache first
         String methodKey = getMethodKey(method);
+
+        // Initialize stack for this analysis thread
+        if (analysisStack.get() == null) {
+            analysisStack.set(new HashSet<>());
+        }
+
+        Set<String> stack = analysisStack.get();
+
+        // Check for recursion
+        if (stack.contains(methodKey)) {
+            debug("Detected recursive call to: " + methodKey);
+            return Collections.emptySet(); // Return empty to break cycle
+        }
+
+        // Check cache first
         if (methodEffectCache.containsKey(methodKey)) {
             return new HashSet<>(methodEffectCache.get(methodKey));
         }
 
         Set<String> effects = new HashSet<>();
 
-        // Debug: Log that we're analyzing a method
-        debug("Analyzing method: " + methodKey);
+        try {
+            stack.add(methodKey);
 
-        // Check if method returns Eff type
-        TypeMirror returnType = method.getReturnType();
-        if (isEffType(returnType)) {
-            debug("Method returns Eff type, analyzing body...");
-            // Analyze method body using AST
-            analyzeEffMethod(method, effects);
-        } else {
-            debug("Method does not return Eff type, skipping analysis");
+            // Debug: Log that we're analyzing a method
+            debug("Analyzing method: " + methodKey);
+
+            // Check if method returns Eff type
+            TypeMirror returnType = method.getReturnType();
+            if (isEffType(returnType)) {
+                debug("Method returns Eff type, analyzing body...");
+                // Analyze method body using AST
+                analyzeEffMethod(method, effects);
+            } else {
+                debug("Method does not return Eff type, skipping analysis");
+            }
+
+            debug("Found effects for " + methodKey + ": " + effects);
+
+            // Cache the result
+            methodEffectCache.put(methodKey, new HashSet<>(effects));
+            return effects;
+        } finally {
+            stack.remove(methodKey);
+            if (stack.isEmpty()) {
+                analysisStack.remove();
+            }
         }
-
-        debug("Found effects for " + methodKey + ": " + effects);
-
-        // Cache the result
-        methodEffectCache.put(methodKey, new HashSet<>(effects));
-        return effects;
     }
 
     private String getMethodKey(ExecutableElement method) {
@@ -98,7 +123,7 @@ public class EffectAnalyzer {
             if (body != null) {
                 debug("Found method body, scanning...");
                 // Use the improved scanner to analyze the method body
-                ImprovedEffectScanner scanner = new ImprovedEffectScanner(effects);
+                ImprovedEffectScanner scanner = new ImprovedEffectScanner(effects, path);
                 scanner.scan(body, null);
             } else {
                 debug("Method body is null (abstract/interface method?)");
@@ -108,16 +133,76 @@ public class EffectAnalyzer {
         }
     }
 
+    /**
+     * Resolves a method invocation tree to its executable element.
+     */
+    private ExecutableElement resolveMethod(MethodInvocationTree node, TreePath currentPath) {
+        try {
+            TreePath methodPath = TreePath.getPath(currentPath, node);
+            if (methodPath == null) {
+                debug("Could not get TreePath for method invocation");
+                return null;
+            }
+
+            Element element = trees.getElement(methodPath);
+            if (element instanceof ExecutableElement) {
+                return (ExecutableElement) element;
+            }
+
+            debug("Resolved element is not ExecutableElement: " + (element != null ? element.getClass() : "null"));
+            return null;
+        } catch (Exception e) {
+            debug("Error resolving method: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Extracts declared effects from a method's @Uses annotation.
+     */
+    private Set<String> extractDeclaredEffects(ExecutableElement method) {
+        Uses usesAnnotation = method.getAnnotation(Uses.class);
+
+        if (usesAnnotation == null) {
+            return Collections.emptySet();
+        }
+
+        // Handle MirroredTypesException during annotation processing
+        Set<String> effects = new HashSet<>();
+        try {
+            for (Class<?> effectClass : usesAnnotation.value()) {
+                effects.add(effectClass.getSimpleName());
+            }
+        } catch (MirroredTypesException e) {
+            for (TypeMirror typeMirror : e.getTypeMirrors()) {
+                String fullName = typeMirror.toString();
+                String simpleName = fullName.substring(fullName.lastIndexOf('.') + 1);
+                effects.add(simpleName);
+            }
+        }
+
+        return effects;
+    }
+
+    /**
+     * Checks if a method is marked as @Pure (no effects).
+     */
+    private boolean isMethodPure(ExecutableElement method) {
+        return method.getAnnotation(Pure.class) != null;
+    }
+
 
     /**
      * Improved scanner that looks for effect patterns directly in the AST.
      */
     private class ImprovedEffectScanner extends TreeScanner<Void, Void> {
         private final Set<String> effects;
+        private final TreePath methodPath;
         private int depth = 0;
 
-        ImprovedEffectScanner(Set<String> effects) {
+        ImprovedEffectScanner(Set<String> effects, TreePath methodPath) {
             this.effects = effects;
+            this.methodPath = methodPath;
         }
 
         @Override
@@ -229,24 +314,37 @@ public class EffectAnalyzer {
         }
 
         private void checkTransitiveMethodCall(MethodInvocationTree node) {
-            // Try to detect if this is a call to a method with @Uses annotation
-            debug("Checking for transitive method call annotations");
+            debug("Checking for transitive method call effects");
 
-            // Extract method name being called
-            ExpressionTree methodSelect = node.getMethodSelect();
-            // TODO: In the future, we should resolve the actual method element
-            String methodName = null;
+            // Resolve the actual method element
+            ExecutableElement calledMethod = resolveMethod(node, methodPath);
 
-            if (methodSelect instanceof MemberSelectTree memberSelect) {
-                methodName = memberSelect.getIdentifier().toString();
-            } else if (methodSelect instanceof IdentifierTree) {
-                methodName = ((IdentifierTree) methodSelect).getName().toString();
+            if (calledMethod == null) {
+                debug("Could not resolve method element for: " + node);
+                return;
             }
 
-            if (methodName != null) {
-                debug("Found method call to: " + methodName);
-                // TODO: In the future, we should resolve the actual method element
-                // and check its @Uses annotation to detect transitive effects properly
+            debug("Resolved method: " + calledMethod);
+
+            // Check if method is pure (no effects)
+            if (isMethodPure(calledMethod)) {
+                debug("Method is marked @Pure, no effects to propagate");
+                return;
+            }
+
+            // Extract declared effects from the called method
+            Set<String> transitiveEffects = extractDeclaredEffects(calledMethod);
+
+            // If no @Uses annotation, recursively analyze the method if it returns Eff
+            if (transitiveEffects.isEmpty() && isEffType(calledMethod.getReturnType())) {
+                debug("No @Uses annotation found, analyzing method body");
+                transitiveEffects = findUsedEffects(calledMethod);
+            }
+
+            // Add transitive effects to current context
+            if (!transitiveEffects.isEmpty()) {
+                debug("Found transitive effects: " + transitiveEffects);
+                effects.addAll(transitiveEffects);
             }
         }
 

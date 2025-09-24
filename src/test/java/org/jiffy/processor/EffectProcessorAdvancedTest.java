@@ -61,10 +61,14 @@ public class EffectProcessorAdvancedTest {
                 import org.jiffy.core.*;
 
                 public class InfoLevel {
-                    @Uses(value = {LogEffect.class}, level = Uses.Level.INFO)
+                    // INFO level produces notes instead of errors/warnings
+                    // But still needs to declare all effects including transitive ones
+                    @Uses(value = {LogEffect.class, DataEffect.class}, level = Uses.Level.INFO)
                     public Eff<String> methodWithInfo() {
-                        // INFO level doesn't produce warnings or errors
-                        return performData();
+                        // Uses LogEffect directly
+                        return Eff.perform(new LogEffect.Info("info"))
+                            // Uses DataEffect transitively through performData()
+                            .flatMap(log -> performData());
                     }
 
                     @Uses(DataEffect.class)
@@ -213,14 +217,15 @@ public class EffectProcessorAdvancedTest {
                 import org.jiffy.core.*;
 
                 public class MultipleAnnotations {
-                    @Uses({DataEffect.class})
+                    // Must declare both effects: LogEffect from log() and DataEffect from performData()
+                    @Uses({LogEffect.class, DataEffect.class})
                     public Eff<String> methodWithMultipleAnnotations() {
                         return log("Starting")
                             .flatMap(x -> performData())
                             .flatMap(y -> log("Done"));
                     }
 
-                    // This doesn't declare @Uses but is covered by @UncheckedEffects above
+                    @Uses(LogEffect.class)
                     private Eff<String> log(String msg) {
                         return Eff.perform(new LogEffect.Info(msg));
                     }

@@ -159,15 +159,11 @@ public class EffectProcessorIntegrationTest {
 
         Compilation compilation = compile(source);
 
-        // Without heuristic-based detection, the processor cannot detect transitive
-        // effects through private method calls. This is a known limitation.
-        // The processor would need proper method resolution to detect these.
-        assertThat(compilation).succeeded();
 
-        // TODO: When proper transitive detection is implemented, change to:
-        // assertThat(compilation).failed();
-        // assertThat(compilation).hadErrorContaining("OrderRepositoryEffect");
-        // assertThat(compilation).hadErrorContaining("ReturnRepositoryEffect");
+
+         assertThat(compilation).failed();
+         assertThat(compilation).hadErrorContaining("OrderRepositoryEffect");
+         assertThat(compilation).hadErrorContaining("ReturnRepositoryEffect");
 
     }
 

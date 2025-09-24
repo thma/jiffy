@@ -58,26 +58,29 @@ public abstract class Eff<A> {
     /**
      * Sequence multiple effects, discarding intermediate results.
      */
+    @SuppressWarnings("unchecked")
     public static <A> Eff<A> sequence(Eff<?>... effects) {
         if (effects.length == 0) {
             return pure(null);
         }
 
-        Eff<?> result = effects[0];
+        // Cast the first effect to Eff<Object> to work around wildcard issues
+        Eff<Object> result = (Eff<Object>) effects[0];
+
+        // Chain all effects except the last one
         for (int i = 1; i < effects.length - 1; i++) {
-            Eff<?> next = effects[i];
+            Eff<Object> next = (Eff<Object>) effects[i];
             result = result.flatMap(ignored -> next);
         }
 
+        // If there are multiple effects, chain the last one with proper type
         if (effects.length > 1) {
-            @SuppressWarnings("unchecked")
             Eff<A> last = (Eff<A>) effects[effects.length - 1];
             return result.flatMap(ignored -> last);
         }
 
-        @SuppressWarnings("unchecked")
-        Eff<A> single = (Eff<A>) result;
-        return single;
+        // Single effect case
+        return (Eff<A>) result;
     }
 
     /**
