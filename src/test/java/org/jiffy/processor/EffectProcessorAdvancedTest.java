@@ -9,6 +9,7 @@ import javax.tools.JavaFileObject;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static org.jiffy.processor.EffectAnalyzerTestHelper.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Advanced test cases for EffectProcessor to improve branch coverage.
@@ -31,12 +32,7 @@ public class EffectProcessorAdvancedTest {
                 public class WarningLevel {
                     @Uses(value = {LogEffect.class}, level = Uses.Level.WARNING)
                     public Eff<String> methodWithWarning() {
-                        // Using undeclared effect should produce warning, not error
-                        return performData();
-                    }
-
-                    @Uses(DataEffect.class)
-                    private Eff<String> performData() {
+                        // Using undeclared effect directly should produce warning, not error
                         return Eff.perform(new DataEffect.Fetch());
                     }
                 }
@@ -88,7 +84,7 @@ public class EffectProcessorAdvancedTest {
 
             Compilation compilation = compile(source);
             assertThat(compilation).succeeded();
-            // INFO level shouldn't produce warnings
+
         }
 
         @Test
@@ -162,8 +158,12 @@ public class EffectProcessorAdvancedTest {
                 """);
 
             Compilation compilation = compile(source);
-            // Pure violation detection may not work in test environment
-            assertThat(compilation).succeeded();
+            if (compilation.status() == Compilation.Status.FAILURE) {
+                assertThat(compilation).hadErrorContaining("LogEffect");
+            } else {
+                // At minimum should warn about missing DatabaseEffect
+                fail("Method declared as @Pure, but using an effect should be detected");
+            }
         }
 
         @Test
@@ -252,6 +252,7 @@ public class EffectProcessorAdvancedTest {
 
             Compilation compilation = compile(source);
             assertThat(compilation).succeeded();
+            assertSame(Compilation.Status.SUCCESS, compilation.status());
         }
 
         @Test

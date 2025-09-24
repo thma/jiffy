@@ -1,6 +1,5 @@
 package org.jiffy.processor;
 
-import org.jiffy.annotations.Provides;
 import org.jiffy.annotations.Pure;
 import org.jiffy.annotations.UncheckedEffects;
 import org.jiffy.annotations.Uses;
@@ -17,28 +16,25 @@ import java.util.*;
  * Annotation processor that validates effect usage at compile time.
  * Ensures that methods only use effects they have declared in @Uses.
  */
-@SupportedAnnotationTypes({
-    "org.jiffy.annotations.Uses",
-    "org.jiffy.annotations.Pure",
-    "org.jiffy.annotations.UncheckedEffects",
-    "org.jiffy.annotations.Provides"
-})
+@SupportedAnnotationTypes("*")  // Process all types to catch methods without annotations
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class EffectProcessor extends AbstractProcessor {
 
     private Messager messager;
     private EffectAnalyzer analyzer;
+    private Set<String> processedMethods;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.messager = processingEnv.getMessager();
         this.analyzer = new EffectAnalyzer(processingEnv);
+        this.processedMethods = new HashSet<>();
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        if (annotations.isEmpty()) {
+        if (roundEnv.processingOver()) {
             return false;
         }
 
@@ -57,10 +53,16 @@ public class EffectProcessor extends AbstractProcessor {
         }
 
         // Process @Provides annotations
-        for (Element element : roundEnv.getElementsAnnotatedWith(Provides.class)) {
-            if (element.getKind() == ElementKind.METHOD) {
-                processMethodWithProvides((ExecutableElement) element);
-            }
+//        for (Element element : roundEnv.getElementsAnnotatedWith(Provides.class)) {
+//            if (element.getKind() == ElementKind.METHOD) {
+//
+//            }
+//        }
+
+        // IMPORTANT: Also check ALL methods that return Eff types but might not have annotations
+        // This catches methods that use effects without declaring them via @Uses
+        for (Element element : roundEnv.getRootElements()) {
+            checkEffMethodsInType(element);
         }
 
         return true;
@@ -75,6 +77,13 @@ public class EffectProcessor extends AbstractProcessor {
         Set<String> declaredEffects = getDeclaredEffects(uses);
         Set<String> usedEffects = analyzer.findUsedEffects(method);
 
+        messager.printMessage(
+                Diagnostic.Kind.NOTE,
+                String.format("Method '%s' uses effects: %s",
+                        method.getSimpleName(), usedEffects),
+                method
+        );
+
         // Check for undeclared effects
         Set<String> undeclaredEffects = new HashSet<>(usedEffects);
         undeclaredEffects.removeAll(declaredEffects);
@@ -82,8 +91,13 @@ public class EffectProcessor extends AbstractProcessor {
         // Check if method has @UncheckedEffects
         if (hasUncheckedEffects(method)) {
             UncheckedEffects unchecked = method.getAnnotation(UncheckedEffects.class);
-            Set<String> allowedUnchecked = getAllowedUncheckedEffects(unchecked);
-            undeclaredEffects.removeAll(allowedUnchecked);
+            if (isWildcardUnchecked(unchecked)) {
+                // Wildcard - all effects are allowed
+                undeclaredEffects.clear();
+            } else {
+                Set<String> allowedUnchecked = getAllowedUncheckedEffects(unchecked);
+                undeclaredEffects.removeAll(allowedUnchecked);
+            }
         }
 
         // Report violations
@@ -129,10 +143,94 @@ public class EffectProcessor extends AbstractProcessor {
         }
     }
 
-    private void processMethodWithProvides(ExecutableElement method) {
-        Provides provides = method.getAnnotation(Provides.class);
-        // For now, just validate that the annotation is properly formed
-        // In a full implementation, we'd track what effects are provided
+    /**
+     * Check all methods in a type to find those that return Eff but might not have @Uses
+     */
+    private void checkEffMethodsInType(Element element) {
+        if (element.getKind() == ElementKind.CLASS || element.getKind() == ElementKind.INTERFACE) {
+            TypeElement typeElement = (TypeElement) element;
+
+            for (Element enclosed : typeElement.getEnclosedElements()) {
+                if (enclosed.getKind() == ElementKind.METHOD) {
+                    ExecutableElement method = (ExecutableElement) enclosed;
+
+                    // Skip private methods - they're implementation details
+                    // and should inherit context from their callers
+                    if (method.getModifiers().contains(Modifier.PRIVATE)) {
+                        continue;
+                    }
+
+                    // Track this method to avoid reprocessing
+                    String methodKey = method.getEnclosingElement() + "." + method.getSimpleName();
+                    if (processedMethods.contains(methodKey)) {
+                        continue;
+                    }
+                    processedMethods.add(methodKey);
+
+                    // Skip if method already has @Uses (already processed)
+                    if (method.getAnnotation(Uses.class) != null) {
+                        continue;
+                    }
+
+                    // Skip if method is marked @Pure (handled separately)
+                    if (method.getAnnotation(Pure.class) != null) {
+                        continue;
+                    }
+
+                    // Skip if method has @UncheckedEffects with wildcard (allows all)
+                    UncheckedEffects unchecked = method.getAnnotation(UncheckedEffects.class);
+                    if (unchecked != null && isWildcardUnchecked(unchecked)) {
+                        continue; // Wildcard - allows all effects
+                    }
+
+                    // Check if method returns Eff type
+                    if (isEffReturnType(method)) {
+                        // Check if this method uses any effects
+                        Set<String> usedEffects = analyzer.findUsedEffects(method);
+
+                        if (!usedEffects.isEmpty()) {
+                            // Method uses effects but has no @Uses declaration!
+                            Set<String> allowedUnchecked = unchecked != null ?
+                                getAllowedUncheckedEffects(unchecked) : Collections.emptySet();
+
+                            Set<String> undeclaredEffects = new HashSet<>(usedEffects);
+                            undeclaredEffects.removeAll(allowedUnchecked);
+
+                            if (!undeclaredEffects.isEmpty()) {
+                                String message = String.format(
+                                    "Method '%s' uses undeclared effects: %s. Add them to @Uses annotation or mark with @UncheckedEffects",
+                                    method.getSimpleName(),
+                                    undeclaredEffects
+                                );
+                                messager.printMessage(Diagnostic.Kind.ERROR, message, method);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if a method returns an Eff type
+     */
+    private boolean isEffReturnType(ExecutableElement method) {
+        String returnType = method.getReturnType().toString();
+        // Simple check - in practice might need more sophisticated type checking
+        return returnType.contains("Eff<") || returnType.equals("Eff");
+    }
+
+    /**
+     * Check if @UncheckedEffects is a wildcard (empty array)
+     */
+    private boolean isWildcardUnchecked(UncheckedEffects unchecked) {
+        try {
+            Class<?>[] effects = unchecked.value();
+            return effects.length == 0;
+        } catch (MirroredTypesException e) {
+            // During annotation processing, this exception is expected
+            return e.getTypeMirrors().isEmpty();
+        }
     }
 
     private Set<String> getDeclaredEffects(Uses uses) {
