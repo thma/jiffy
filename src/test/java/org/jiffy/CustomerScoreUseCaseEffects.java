@@ -1,6 +1,5 @@
 package org.jiffy;
 
-import org.jiffy.annotations.Pure;
 import org.jiffy.annotations.Uses;
 import org.jiffy.core.Eff;
 import org.jiffy.definitions.LogEffect;
@@ -48,25 +47,24 @@ public class CustomerScoreUseCaseEffects {
     }
 
     /**
-     * Alternative implementation with sequential fetching.
+     * Alternative implementation with sequential fetching using the new For comprehension.
      * Uses the same effects as the parallel version.
      */
     @Uses({LogEffect.class, OrderRepositoryEffect.class, ReturnRepositoryEffect.class})
     public Eff<Integer> calculateScoreSequential(Long customerId) {
-        return do_(
+        return Eff.For(
             log(new LogEffect.Info("Calculating score for customer " + customerId)),
             getOrders(customerId),
-            getReturns(customerId),
-            (ignored, orders, returns) -> {
-                // Pure domain logic
-                Customer customer = new Customer(customerId);
-                int score = customer.calculateScore(orders, returns);
+            getReturns(customerId)
+        ).yieldEff((ignored, orders, returns) -> {
+            // Pure domain logic
+            Customer customer = new Customer(customerId);
+            int score = customer.calculateScore(orders, returns);
 
-                // Log the result
-                return log(new LogEffect.Info("Customer " + customerId + " has score " + score))
-                    .map(v -> score);
-            }
-        );
+            // Log the result
+            return log(new LogEffect.Info("Customer " + customerId + " has score " + score))
+                .map(v -> score);
+        });
     }
 
     /**
@@ -100,25 +98,31 @@ public class CustomerScoreUseCaseEffects {
         return Eff.perform(new ReturnRepositoryEffect.FindByCustomerId(customerId));
     }
 
-    // Monadic do-comprehension helper - pure function, no effects
-    @Pure(reason = "Pure combinator for effect composition")
-    private <A, B, C, D> Eff<D> do_(
-        Eff<A> effA,
-        Eff<B> effB,
-        Eff<C> effC,
-        TriFunction<A, B, C, Eff<D>> f
-    ) {
-        return effA.flatMap(a ->
-            effB.flatMap(b ->
-                effC.flatMap(c ->
-                    f.apply(a, b, c)
-                )
-            )
-        );
+    /**
+     * Example using For comprehension with 4 effects.
+     * Demonstrates the new For syntax with more effects.
+     */
+    @Uses({LogEffect.class, OrderRepositoryEffect.class, ReturnRepositoryEffect.class})
+    public Eff<String> generateCustomerReport(Long customerId) {
+        return Eff.For(
+            log(new LogEffect.Info("Generating report for customer " + customerId)),
+            getOrders(customerId),
+            getReturns(customerId),
+            log(new LogEffect.Info("Data fetched, calculating..."))
+        ).yieldEff((startLog, orders, returns, fetchLog) -> {
+            // Pure domain logic
+            Customer customer = new Customer(customerId);
+            int score = customer.calculateScore(orders, returns);
+
+            String report = String.format(
+                "Customer %d: %d orders, %d returns, score: %d",
+                customerId, orders.size(), returns.size(), score
+            );
+
+            // Log and return the report
+            return log(new LogEffect.Info("Report generated: " + report))
+                .map(v -> report);
+        });
     }
 
-    @FunctionalInterface
-    private interface TriFunction<A, B, C, D> {
-        D apply(A a, B b, C c);
-    }
 }

@@ -104,6 +104,64 @@ public abstract class Eff<A> {
         return new RecoverWith<>(this, recovery);
     }
 
+    // For comprehension factory methods
+
+    /**
+     * Creates a For comprehension with one effect.
+     */
+    public static <A> For1<A> For(Eff<A> effA) {
+        return new For1<>(effA);
+    }
+
+    /**
+     * Creates a For comprehension with two effects.
+     */
+    public static <A, B> For2<A, B> For(Eff<A> effA, Eff<B> effB) {
+        return new For2<>(effA, effB);
+    }
+
+    /**
+     * Creates a For comprehension with three effects.
+     */
+    public static <A, B, C> For3<A, B, C> For(Eff<A> effA, Eff<B> effB, Eff<C> effC) {
+        return new For3<>(effA, effB, effC);
+    }
+
+    /**
+     * Creates a For comprehension with four effects.
+     */
+    public static <A, B, C, D> For4<A, B, C, D> For(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD) {
+        return new For4<>(effA, effB, effC, effD);
+    }
+
+    /**
+     * Creates a For comprehension with five effects.
+     */
+    public static <A, B, C, D, E> For5<A, B, C, D, E> For(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE) {
+        return new For5<>(effA, effB, effC, effD, effE);
+    }
+
+    /**
+     * Creates a For comprehension with six effects.
+     */
+    public static <A, B, C, D, E, F> For6<A, B, C, D, E, F> For(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE, Eff<F> effF) {
+        return new For6<>(effA, effB, effC, effD, effE, effF);
+    }
+
+    /**
+     * Creates a For comprehension with seven effects.
+     */
+    public static <A, B, C, D, E, F, G> For7<A, B, C, D, E, F, G> For(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE, Eff<F> effF, Eff<G> effG) {
+        return new For7<>(effA, effB, effC, effD, effE, effF, effG);
+    }
+
+    /**
+     * Creates a For comprehension with eight effects.
+     */
+    public static <A, B, C, D, E, F, G, H> For8<A, B, C, D, E, F, G, H> For(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE, Eff<F> effF, Eff<G> effG, Eff<H> effH) {
+        return new For8<>(effA, effB, effC, effD, effE, effF, effG, effH);
+    }
+
     // Implementation classes
 
     private static class Pure<A> extends Eff<A> {
@@ -304,6 +362,372 @@ public abstract class Eff<A> {
             }
             default -> {
             }
+        }
+    }
+
+    // For comprehension classes
+
+    /**
+     * For comprehension with one effect.
+     */
+    public static final class For1<A> {
+        private final Eff<A> effA;
+
+        private For1(Eff<A> effA) {
+            this.effA = effA;
+        }
+
+        /**
+         * Yields a pure value from the effect.
+         */
+        public <R> Eff<R> yield(Function<A, R> f) {
+            return effA.map(f);
+        }
+
+        /**
+         * Yields an effectful computation from the effect.
+         */
+        public <R> Eff<R> yieldEff(Function<A, Eff<R>> f) {
+            return effA.flatMap(f);
+        }
+    }
+
+    /**
+     * For comprehension with two effects.
+     */
+    public static final class For2<A, B> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+
+        private For2(Eff<A> effA, Eff<B> effB) {
+            this.effA = effA;
+            this.effB = effB;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(BiFunction<A, B, R> f) {
+            return effA.flatMap(a -> effB.map(b -> f.apply(a, b)));
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(BiFunction<A, B, Eff<R>> f) {
+            return effA.flatMap(a -> effB.flatMap(b -> f.apply(a, b)));
+        }
+    }
+
+    /**
+     * For comprehension with three effects.
+     */
+    public static final class For3<A, B, C> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+        private final Eff<C> effC;
+
+        private For3(Eff<A> effA, Eff<B> effB, Eff<C> effC) {
+            this.effA = effA;
+            this.effB = effB;
+            this.effC = effC;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(Function3<A, B, C, R> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.map(c -> f.apply(a, b, c))
+                )
+            );
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(Function3<A, B, C, Eff<R>> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c -> f.apply(a, b, c))
+                )
+            );
+        }
+    }
+
+    /**
+     * For comprehension with four effects.
+     */
+    public static final class For4<A, B, C, D> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+        private final Eff<C> effC;
+        private final Eff<D> effD;
+
+        private For4(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD) {
+            this.effA = effA;
+            this.effB = effB;
+            this.effC = effC;
+            this.effD = effD;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(Function4<A, B, C, D, R> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.map(d -> f.apply(a, b, c, d))
+                    )
+                )
+            );
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(Function4<A, B, C, D, Eff<R>> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d -> f.apply(a, b, c, d))
+                    )
+                )
+            );
+        }
+    }
+
+    /**
+     * For comprehension with five effects.
+     */
+    public static final class For5<A, B, C, D, E> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+        private final Eff<C> effC;
+        private final Eff<D> effD;
+        private final Eff<E> effE;
+
+        private For5(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE) {
+            this.effA = effA;
+            this.effB = effB;
+            this.effC = effC;
+            this.effD = effD;
+            this.effE = effE;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(Function5<A, B, C, D, E, R> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.map(e -> f.apply(a, b, c, d, e))
+                        )
+                    )
+                )
+            );
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(Function5<A, B, C, D, E, Eff<R>> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e -> f.apply(a, b, c, d, e))
+                        )
+                    )
+                )
+            );
+        }
+    }
+
+    /**
+     * For comprehension with six effects.
+     */
+    public static final class For6<A, B, C, D, E, F> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+        private final Eff<C> effC;
+        private final Eff<D> effD;
+        private final Eff<E> effE;
+        private final Eff<F> effF;
+
+        private For6(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE, Eff<F> effF) {
+            this.effA = effA;
+            this.effB = effB;
+            this.effC = effC;
+            this.effD = effD;
+            this.effE = effE;
+            this.effF = effF;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(Function6<A, B, C, D, E, F, R> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e ->
+                                effF.map(f_ -> f.apply(a, b, c, d, e, f_))
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(Function6<A, B, C, D, E, F, Eff<R>> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e ->
+                                effF.flatMap(f_ -> f.apply(a, b, c, d, e, f_))
+                            )
+                        )
+                    )
+                )
+            );
+        }
+    }
+
+    /**
+     * For comprehension with seven effects.
+     */
+    public static final class For7<A, B, C, D, E, F, G> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+        private final Eff<C> effC;
+        private final Eff<D> effD;
+        private final Eff<E> effE;
+        private final Eff<F> effF;
+        private final Eff<G> effG;
+
+        private For7(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE, Eff<F> effF, Eff<G> effG) {
+            this.effA = effA;
+            this.effB = effB;
+            this.effC = effC;
+            this.effD = effD;
+            this.effE = effE;
+            this.effF = effF;
+            this.effG = effG;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(Function7<A, B, C, D, E, F, G, R> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e ->
+                                effF.flatMap(f_ ->
+                                    effG.map(g -> f.apply(a, b, c, d, e, f_, g))
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(Function7<A, B, C, D, E, F, G, Eff<R>> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e ->
+                                effF.flatMap(f_ ->
+                                    effG.flatMap(g -> f.apply(a, b, c, d, e, f_, g))
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        }
+    }
+
+    /**
+     * For comprehension with eight effects.
+     */
+    public static final class For8<A, B, C, D, E, F, G, H> {
+        private final Eff<A> effA;
+        private final Eff<B> effB;
+        private final Eff<C> effC;
+        private final Eff<D> effD;
+        private final Eff<E> effE;
+        private final Eff<F> effF;
+        private final Eff<G> effG;
+        private final Eff<H> effH;
+
+        private For8(Eff<A> effA, Eff<B> effB, Eff<C> effC, Eff<D> effD, Eff<E> effE, Eff<F> effF, Eff<G> effG, Eff<H> effH) {
+            this.effA = effA;
+            this.effB = effB;
+            this.effC = effC;
+            this.effD = effD;
+            this.effE = effE;
+            this.effF = effF;
+            this.effG = effG;
+            this.effH = effH;
+        }
+
+        /**
+         * Yields a pure value from the effects.
+         */
+        public <R> Eff<R> yield(Function8<A, B, C, D, E, F, G, H, R> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e ->
+                                effF.flatMap(f_ ->
+                                    effG.flatMap(g ->
+                                        effH.map(h -> f.apply(a, b, c, d, e, f_, g, h))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        /**
+         * Yields an effectful computation from the effects.
+         */
+        public <R> Eff<R> yieldEff(Function8<A, B, C, D, E, F, G, H, Eff<R>> f) {
+            return effA.flatMap(a ->
+                effB.flatMap(b ->
+                    effC.flatMap(c ->
+                        effD.flatMap(d ->
+                            effE.flatMap(e ->
+                                effF.flatMap(f_ ->
+                                    effG.flatMap(g ->
+                                        effH.flatMap(h -> f.apply(a, b, c, d, e, f_, g, h))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
         }
     }
 }

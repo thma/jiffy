@@ -88,17 +88,6 @@ public class AnnotatedEffectsIntegrationTest {
             "Should declare ReturnRepositoryEffect");
     }
 
-    @Test
-    void testPureMethodsAreAnnotated() throws NoSuchMethodException {
-        // Find the do_ method using getDeclaredMethod for private method
-        var method = CustomerScoreUseCaseEffects.class
-            .getDeclaredMethod("do_", Eff.class, Eff.class, Eff.class,
-                CustomerScoreUseCaseEffects.class.getDeclaredClasses()[0]);
-
-        Pure pure = method.getAnnotation(Pure.class);
-        assertNotNull(pure, "for_ method should be annotated @Pure");
-        assertEquals("Pure combinator for effect composition", pure.reason());
-    }
 
     @Test
     void testAllPublicMethodsHaveEffectAnnotations() {
