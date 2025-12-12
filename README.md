@@ -1,5 +1,7 @@
 # Jiffy - Algebraic Effects for Java
 
+<img src="jiffy.png" alt="jiffy" width="100"/> 
+
 Jiffy is a lightweight library that brings algebraic effects to Java with compile-time effect checking through annotations.
 
 ## Features
@@ -18,7 +20,7 @@ Jiffy is a lightweight library that brings algebraic effects to Java with compil
 ```java
 public sealed interface LogEffect extends Effect<Void> {
     record Info(String message) implements LogEffect {}
-    record Error(String message, Throwable cause) implements LogEffect {}
+    record Error(String message) implements LogEffect {}
 }
 ```
 
@@ -46,11 +48,12 @@ public class UserService {
 ```java
 public class LogHandler implements EffectHandler<LogEffect> {
     @Override
-    public void handle(LogEffect effect, EffectRuntime runtime) {
+    public <T> T handle(LogEffect effect) {
         switch (effect) {
             case LogEffect.Info(var message) -> System.out.println("[INFO] " + message);
-            case LogEffect.Error(var message, var cause) -> System.err.println("[ERROR] " + message);
+            case LogEffect.Error(var message) -> System.err.println("[ERROR] " + message);
         }
+        return null;  // LogEffect returns Void
     }
 }
 ```
@@ -58,9 +61,10 @@ public class LogHandler implements EffectHandler<LogEffect> {
 ### Run with Runtime
 
 ```java
-EffectRuntime runtime = new EffectRuntime()
-    .with(LogEffect.class, new LogHandler())
-    .with(DatabaseEffect.class, new DatabaseHandler());
+EffectRuntime runtime = EffectRuntime.builder()
+    .withHandler(LogEffect.class, new LogHandler())
+    .withHandler(DatabaseEffect.class, new DatabaseHandler())
+    .build();
 
 User user = findUser(123L).runWith(runtime);
 ```
@@ -109,8 +113,6 @@ Handlers interpret effects. They implement `EffectHandler<E>` where `E` is the e
 ### Annotations
 - `@Uses` - Declares which effects a method may use
 - `@Pure` - Marks methods as effect-free
-- `@UncheckedEffects` - Allows specific effects without declaration
-- `@Provides` - Indicates a method provides effect handlers
 
 ## Advanced Features
 
@@ -124,11 +126,16 @@ Eff.parallel(
 
 ### Effect Recovery
 ```java
+// Simple recovery with a fallback value
 fetchData()
-    .recover(error -> {
-        log("Failed to fetch data: " + error);
-        return defaultData();
-    });
+    .recover(error -> defaultData());
+
+// Recovery with logging (using recoverWith for proper effect handling)
+fetchData()
+    .recoverWith(error ->
+        Eff.perform(new LogEffect.Error("Failed: " + error.getMessage()))
+            .map(v -> defaultData())
+    );
 ```
 
 ### Sequential Composition
@@ -140,13 +147,6 @@ Eff.sequence(
 );
 ```
 
-## Documentation
-
-- [User Guide](docs/USER_GUIDE.md)
-- [API Documentation](docs/API.md)
-- [Effect Comparison](docs/EFFECT_COMPARISON.md)
-- [Examples](examples/)
-
 ## Building from Source
 
 ```bash
@@ -157,7 +157,7 @@ mvn clean install
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please open an issue or submit a pull request.
 
 ## License
 
@@ -165,6 +165,6 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 ## Acknowledgments
 
-- Inspired by algebraic effects in OCaml, Koka, and Haskell
-- Similar projects: [Jeff](https://github.com/lpld/jeff), ZIO, Arrow-kt
+- Inspired by algebraic effects in Haskell
+- Similar projects: [Jeff](https://github.com/lpld/jeff)
 - Built for the Java community with ❤️
