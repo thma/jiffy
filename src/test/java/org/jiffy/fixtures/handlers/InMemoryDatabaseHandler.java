@@ -34,19 +34,8 @@ public class InMemoryDatabaseHandler implements EffectHandler<DatabaseEffect<?>>
         return (T) result;
     }
 
-//    public void seedData(Map<Long, Entity> data) {
-//        storage.putAll(data);
-//        // Update ID generator to avoid conflicts
-//        long maxId = data.keySet().stream().mapToLong(Long::longValue).max().orElse(0);
-//        idGenerator.set(Math.max(idGenerator.get(), maxId + 1));
-//    }
-
     public Map<Long, Entity> getAllData() {
         return new HashMap<>(storage);
     }
 
-//    public void clear() {
-//        storage.clear();
-//        idGenerator.set(1);
-//    }
 }

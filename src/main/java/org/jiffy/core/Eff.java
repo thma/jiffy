@@ -59,7 +59,7 @@ public abstract class Eff<A> {
      * Sequence multiple effects, discarding intermediate results.
      */
     @SuppressWarnings("unchecked")
-    public static <A> Eff<A> sequence(Eff<?>... effects) {
+    public static <A> Eff<A> andThen(Eff<?>... effects) {
         if (effects.length == 0) {
             return pure(null);
         }

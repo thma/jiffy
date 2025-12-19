@@ -195,7 +195,7 @@ class EffTest {
         @DisplayName("sequence() executes all effects in order")
         void sequence_executesAllEffectsInOrder() {
             List<Integer> order = new ArrayList<>();
-            Eff<Void> eff = sequence(
+            Eff<Void> eff = andThen(
                 of(() -> { order.add(1); return null; }),
                 of(() -> { order.add(2); return null; }),
                 of(() -> { order.add(3); return null; })
@@ -209,7 +209,7 @@ class EffTest {
         @Test
         @DisplayName("sequence() returns last value")
         void sequence_returnsLastValue() {
-            Eff<String> eff = sequence(
+            Eff<String> eff = andThen(
                 pure(1),
                 pure(2),
                 pure("last")
@@ -223,7 +223,7 @@ class EffTest {
         @Test
         @DisplayName("sequence() with empty array returns null")
         void sequence_withEmptyArray_returnsNull() {
-            Eff<Object> eff = sequence();
+            Eff<Object> eff = andThen();
 
             Object result = eff.runWith(runtime);
 
@@ -234,7 +234,7 @@ class EffTest {
         @DisplayName("sequence() with single effect returns it directly")
         void sequence_withSingleEffect_returnsItDirectly() {
             Eff<Integer> single = pure(42);
-            Eff<Integer> eff = sequence(single);
+            Eff<Integer> eff = andThen(single);
 
             Integer result = eff.runWith(runtime);
 
