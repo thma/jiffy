@@ -13,6 +13,13 @@ Jiffy is a lightweight library that brings algebraic effects to Java with compil
 - 🏗️ **Spring-friendly** - Integrates well with Spring Boot applications
 - ⚡ **Minimal overhead** - Efficient runtime with direct handler dispatch
 
+## Demo Project
+
+This demo shows how to use jiffy in a SpringBoot application.
+It also has a nice introduction to core concepts used:
+
+https://github.com/thma/jiffy-clean-architecture/
+
 ## Quick Start
 
 ### Define an Effect
