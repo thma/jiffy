@@ -44,7 +44,7 @@ class EffTest {
         void pure_wrapsValueWithoutSideEffects() {
             Eff<Integer> eff = pure(42);
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(42, result);
             assertEquals(0, logHandler.size());
@@ -55,7 +55,7 @@ class EffTest {
         void pure_handlesNullValue() {
             Eff<String> eff = pure(null);
 
-            String result = eff.runWith(runtime);
+            String result = runtime.run(eff);
 
             assertNull(result);
         }
@@ -65,7 +65,7 @@ class EffTest {
         void perform_wrapsEffectForExecution() {
             Eff<Void> eff = perform(new LogEffect.Info("test message"));
 
-            eff.runWith(runtime);
+            runtime.run(eff);
 
             assertTrue(logHandler.containsMessagePart("test message"));
         }
@@ -79,7 +79,7 @@ class EffTest {
             // Supplier not called yet
             assertEquals(0, counter.get());
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(1, result);
             assertEquals(1, counter.get());
@@ -91,9 +91,9 @@ class EffTest {
             AtomicInteger counter = new AtomicInteger(0);
             Eff<Integer> eff = of(counter::incrementAndGet);
 
-            eff.runWith(runtime);
-            eff.runWith(runtime);
-            eff.runWith(runtime);
+            runtime.run(eff);
+            runtime.run(eff);
+            runtime.run(eff);
 
             assertEquals(3, counter.get());
         }
@@ -108,7 +108,7 @@ class EffTest {
         void map_transformsValueWithPureFunction() {
             Eff<String> eff = pure(10).map(n -> "Value: " + n);
 
-            String result = eff.runWith(runtime);
+            String result = runtime.run(eff);
 
             assertEquals("Value: 10", result);
         }
@@ -119,7 +119,7 @@ class EffTest {
             Eff<String> eff = perform(new LogEffect.Info("logged"))
                 .map(v -> "done");
 
-            String result = eff.runWith(runtime);
+            String result = runtime.run(eff);
 
             assertEquals("done", result);
             assertTrue(logHandler.containsMessagePart("logged"));
@@ -131,7 +131,7 @@ class EffTest {
             Eff<Integer> eff = perform(new CounterEffect.Increment())
                 .flatMap(v -> perform(new CounterEffect.Increment()));
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(2, result);
         }
@@ -142,7 +142,7 @@ class EffTest {
             Eff<String> eff = pure((String) null)
                 .flatMap(s -> pure(s == null ? "was null" : "not null"));
 
-            String result = eff.runWith(runtime);
+            String result = runtime.run(eff);
 
             assertEquals("was null", result);
         }
@@ -154,8 +154,8 @@ class EffTest {
             int a = 5;
             java.util.function.Function<Integer, Eff<Integer>> f = x -> pure(x * 2);
 
-            Integer leftSide = pure(a).flatMap(f).runWith(runtime);
-            Integer rightSide = f.apply(a).runWith(runtime);
+            Integer leftSide = runtime.run(pure(a).flatMap(f));
+            Integer rightSide = runtime.run(f.apply(a));
 
             assertEquals(rightSide, leftSide);
         }
@@ -166,8 +166,8 @@ class EffTest {
             // Right identity: m.flatMap(pure) == m
             Eff<Integer> m = pure(42);
 
-            Integer leftSide = m.flatMap(Eff::pure).runWith(runtime);
-            Integer rightSide = m.runWith(runtime);
+            Integer leftSide = runtime.run(m.flatMap(Eff::pure));
+            Integer rightSide = runtime.run(m);
 
             assertEquals(rightSide, leftSide);
         }
@@ -180,8 +180,8 @@ class EffTest {
             java.util.function.Function<Integer, Eff<Integer>> f = x -> pure(x * 2);
             java.util.function.Function<Integer, Eff<Integer>> g = x -> pure(x + 1);
 
-            Integer leftSide = m.flatMap(f).flatMap(g).runWith(runtime);
-            Integer rightSide = m.flatMap(x -> f.apply(x).flatMap(g)).runWith(runtime);
+            Integer leftSide = runtime.run(m.flatMap(f).flatMap(g));
+            Integer rightSide = runtime.run(m.flatMap(x -> f.apply(x).flatMap(g)));
 
             assertEquals(rightSide, leftSide);
         }
@@ -201,7 +201,7 @@ class EffTest {
                 of(() -> { order.add(3); return null; })
             );
 
-            eff.runWith(runtime);
+            runtime.run(eff);
 
             assertEquals(List.of(1, 2, 3), order);
         }
@@ -215,7 +215,7 @@ class EffTest {
                 pure("last")
             );
 
-            String result = eff.runWith(runtime);
+            String result = runtime.run(eff);
 
             assertEquals("last", result);
         }
@@ -225,7 +225,7 @@ class EffTest {
         void sequence_withEmptyArray_returnsNull() {
             Eff<Object> eff = andThen();
 
-            Object result = eff.runWith(runtime);
+            Object result = runtime.run(eff);
 
             assertNull(result);
         }
@@ -236,7 +236,7 @@ class EffTest {
             Eff<Integer> single = pure(42);
             Eff<Integer> eff = andThen(single);
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(42, result);
         }
@@ -254,7 +254,7 @@ class EffTest {
                 pure("hello")
             );
 
-            Eff.Pair<Integer, String> result = eff.runWith(runtime);
+            Eff.Pair<Integer, String> result = runtime.run(eff);
 
             assertEquals(42, result.getFirst());
             assertEquals("hello", result.getSecond());
@@ -271,7 +271,7 @@ class EffTest {
             );
 
             long start = System.currentTimeMillis();
-            Eff.Pair<Integer, Integer> result = eff.runWith(runtime);
+            Eff.Pair<Integer, Integer> result = runtime.run(eff);
             long duration = System.currentTimeMillis() - start;
 
             assertEquals(1, result.getFirst());
@@ -287,7 +287,7 @@ class EffTest {
                 pure(2)
             );
 
-            RuntimeException ex = assertThrows(RuntimeException.class, () -> eff.runWith(runtime));
+            RuntimeException ex = assertThrows(RuntimeException.class, () -> runtime.run(eff));
             assertTrue(ex.getMessage().contains("parallel") || ex.getCause() != null);
         }
 
@@ -299,7 +299,7 @@ class EffTest {
                 of(() -> { throw new IllegalStateException("second failed"); })
             );
 
-            RuntimeException ex = assertThrows(RuntimeException.class, () -> eff.runWith(runtime));
+            RuntimeException ex = assertThrows(RuntimeException.class, () -> runtime.run(eff));
             assertTrue(ex.getMessage().contains("parallel") || ex.getCause() != null);
         }
 
@@ -321,7 +321,7 @@ class EffTest {
         void recover_returnsOriginalValueOnSuccess() {
             Eff<Integer> eff = pure(42).recover(t -> -1);
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(42, result);
         }
@@ -333,7 +333,7 @@ class EffTest {
                 .map(x -> (Integer) x)
                 .recover(t -> -1);
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(-1, result);
         }
@@ -350,7 +350,7 @@ class EffTest {
                     return -1;
                 });
 
-            eff.runWith(runtime);
+            runtime.run(eff);
 
             assertEquals(1, captured.get());
         }
@@ -360,7 +360,7 @@ class EffTest {
         void recoverWith_returnsOriginalValueOnSuccess() {
             Eff<Integer> eff = pure(42).recoverWith(t -> pure(-1));
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(42, result);
         }
@@ -371,7 +371,7 @@ class EffTest {
             Eff<Integer> eff = Eff.<Integer>of(() -> { throw new RuntimeException("oops"); })
                 .recoverWith(t -> pure(-1));
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(-1, result);
         }
@@ -385,7 +385,7 @@ class EffTest {
                         .map(v -> -1)
                 );
 
-            Integer result = eff.runWith(runtime);
+            Integer result = runtime.run(eff);
 
             assertEquals(-1, result);
             assertTrue(logHandler.containsMessagePart("Recovery: oops"));

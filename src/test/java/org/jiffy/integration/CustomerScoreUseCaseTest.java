@@ -96,7 +96,7 @@ class CustomerScoreUseCaseTest {
         returnHandler.addReturn(new Return(1L, customerId, "Defective"));
 
         // Execute
-        Integer score = calculateCustomerScore(customerId).runWith(runtime);
+        Integer score = runtime.run(calculateCustomerScore(customerId));
 
         // Expected: 100 (base) + 30 (3 orders * 10) + 25 ($500/100 * 5) - 15 (1 return) = 140
         assertEquals(140, score);
@@ -108,7 +108,7 @@ class CustomerScoreUseCaseTest {
         Long customerId = 1L;
         orderHandler.addOrder(new Order(1L, customerId, 100.0));
 
-        calculateCustomerScore(customerId).runWith(runtime);
+        runtime.run(calculateCustomerScore(customerId));
 
         assertTrue(logHandler.containsMessagePart("Calculating score for customer: 1"));
         assertTrue(logHandler.containsMessagePart("Score breakdown"));
@@ -121,7 +121,7 @@ class CustomerScoreUseCaseTest {
         Long customerId = 1L;
         // No orders, no returns
 
-        Integer score = calculateCustomerScore(customerId).runWith(runtime);
+        Integer score = runtime.run(calculateCustomerScore(customerId));
 
         // Expected: 100 (base) + 0 + 0 - 0 = 100
         assertEquals(100, score);
@@ -141,7 +141,7 @@ class CustomerScoreUseCaseTest {
             new Return(5L, customerId, "Duplicate order")
         ));
 
-        Integer score = calculateCustomerScore(customerId).runWith(runtime);
+        Integer score = runtime.run(calculateCustomerScore(customerId));
 
         // Expected: 100 + 10 + 5 - 75 = 40
         assertEquals(40, score);
@@ -165,7 +165,7 @@ class CustomerScoreUseCaseTest {
             new Return(10L, customerId, "Return 10")
         ));
 
-        Integer score = calculateCustomerScore(customerId).runWith(runtime);
+        Integer score = runtime.run(calculateCustomerScore(customerId));
 
         // Would be: 100 - 150 = -50, but floored to 0
         assertEquals(0, score);
@@ -187,7 +187,7 @@ class CustomerScoreUseCaseTest {
             .build();
 
         RuntimeException ex = assertThrows(RuntimeException.class, () ->
-            calculateCustomerScore(1L).runWith(failingRuntime)
+            failingRuntime.run(calculateCustomerScore(1L))
         );
 
         assertTrue(ex.getMessage().contains("Database connection failed"));
@@ -206,8 +206,8 @@ class CustomerScoreUseCaseTest {
         orderHandler.addOrder(new Order(3L, 2L, 50.0));
         returnHandler.addReturn(new Return(1L, 2L, "Return"));
 
-        Integer score1 = calculateCustomerScore(1L).runWith(runtime);
-        Integer score2 = calculateCustomerScore(2L).runWith(runtime);
+        Integer score1 = runtime.run(calculateCustomerScore(1L));
+        Integer score2 = runtime.run(calculateCustomerScore(2L));
 
         // Customer 1: 100 + 20 + 50 - 0 = 170
         assertEquals(170, score1);
@@ -240,7 +240,7 @@ class CustomerScoreUseCaseTest {
             return pure(BASE_SCORE + orderPoints + spendingPoints - returnPenalty);
         });
 
-        Integer score = computation.runWith(runtime);
+        Integer score = runtime.run(computation);
 
         // 100 + 10 + 10 - 0 = 120
         assertEquals(120, score);

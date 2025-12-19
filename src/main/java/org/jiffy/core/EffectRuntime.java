@@ -1,10 +1,13 @@
 package org.jiffy.core;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Runtime for executing effects with registered handlers.
+ * Provides both low-level effect handling and high-level program execution.
  */
 public class EffectRuntime {
 
@@ -14,8 +17,74 @@ public class EffectRuntime {
         this.handlers = new HashMap<>(handlers);
     }
 
+    // ========================================================================
+    // Program Execution Methods
+    // ========================================================================
+
+    /**
+     * Run an effectful computation synchronously.
+     * This is the primary entry point for executing Eff programs.
+     *
+     * @param program the effect computation to run
+     * @param <A> the result type
+     * @return the computed result
+     */
+    public <A> A run(Eff<A> program) {
+        return EffectRunner.run(program, this);
+    }
+
+    /**
+     * Run an effectful computation asynchronously.
+     *
+     * @param program the effect computation to run
+     * @param <A> the result type
+     * @return a future that will complete with the result
+     */
+    public <A> CompletableFuture<A> runAsync(Eff<A> program) {
+        return EffectRunner.runAsync(program, this);
+    }
+
+    /**
+     * Run an effectful computation while tracing all performed effects.
+     *
+     * @param program the effect computation to run
+     * @param <A> the result type
+     * @return a Traced result with both value and effect log
+     */
+    public <A> Traced<A> runTraced(Eff<A> program) {
+        return EffectRunner.runTraced(program, this);
+    }
+
+    /**
+     * Analyze an effectful computation without running it.
+     *
+     * @param program the effect computation to analyze
+     * @param <A> the result type
+     * @return list of statically-known effects
+     */
+    public <A> List<Effect<?>> dryRun(Eff<A> program) {
+        return EffectRunner.dryRun(program);
+    }
+
+    /**
+     * Prepare an effectful computation for execution.
+     * Returns a RunnableEff that provides a fluent API for running the program.
+     *
+     * @param program the effect computation to prepare
+     * @param <A> the result type
+     * @return a RunnableEff ready for execution
+     */
+    public <A> RunnableEff<A> prepare(Eff<A> program) {
+        return new RunnableEff<>(program, this);
+    }
+
+    // ========================================================================
+    // Effect Handling (Low-level)
+    // ========================================================================
+
     /**
      * Handle an effect using the registered handler.
+     * This is called by EffectRunner during interpretation.
      */
     @SuppressWarnings("unchecked")
     public <T> T handle(Effect<T> effect) {
@@ -53,6 +122,10 @@ public class EffectRuntime {
 
         return null;
     }
+
+    // ========================================================================
+    // Builder
+    // ========================================================================
 
     /**
      * Create a new builder for constructing an EffectRuntime.

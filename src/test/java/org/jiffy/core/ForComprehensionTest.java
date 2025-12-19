@@ -43,7 +43,7 @@ class ForComprehensionTest {
         void for1_yield_transformsSingleValue() {
             Eff<Integer> computation = For(pure(21)).yield(x -> x * 2);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(42, result);
         }
@@ -54,7 +54,7 @@ class ForComprehensionTest {
             Eff<String> computation = For(pure(10))
                 .yieldEff(x -> pure("Value: " + x));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("Value: 10", result);
         }
@@ -65,7 +65,7 @@ class ForComprehensionTest {
             Eff<Integer> computation = For(pure("init"))
                 .yieldEff(s -> perform(new CounterEffect.Increment()));
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(1, result);
         }
@@ -81,7 +81,7 @@ class ForComprehensionTest {
             Eff<Integer> computation = For(pure(10), pure(20))
                 .yield(Integer::sum);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(30, result);
         }
@@ -92,7 +92,7 @@ class ForComprehensionTest {
             Eff<String> computation = For(pure("Hello"), pure("World"))
                 .yieldEff((a, b) -> pure(a + " " + b + "!"));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("Hello World!", result);
         }
@@ -107,7 +107,7 @@ class ForComprehensionTest {
                 of(() -> { order.add(2); return 20; })
             ).yield(Integer::sum);
 
-            computation.runWith(runtime);
+            runtime.run(computation);
 
             assertEquals(List.of(1, 2), order);
         }
@@ -123,7 +123,7 @@ class ForComprehensionTest {
             Eff<Integer> computation = For(pure(1), pure(2), pure(3))
                 .yield((a, b, c) -> a + b + c);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(6, result);
         }
@@ -138,7 +138,7 @@ class ForComprehensionTest {
                         .map(v -> "Result: " + sum);
                 });
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("Result: 6", result);
             assertTrue(logHandler.containsMessagePart("Sum: 6"));
@@ -153,7 +153,7 @@ class ForComprehensionTest {
                 pure(3)
             ).yield((log, a, b) -> a * b);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(15, result);
             assertTrue(logHandler.containsMessagePart("Starting"));
@@ -170,7 +170,7 @@ class ForComprehensionTest {
             Eff<Integer> computation = For(pure(1), pure(2), pure(3), pure(4))
                 .yield((a, b, c, d) -> a + b + c + d);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(10, result);
         }
@@ -182,7 +182,7 @@ class ForComprehensionTest {
                 pure("a"), pure("b"), pure("c"), pure("d")
             ).yieldEff((a, b, c, d) -> pure(String.join("-", a, b, c, d)));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("a-b-c-d", result);
         }
@@ -199,7 +199,7 @@ class ForComprehensionTest {
                 pure("a"), pure("b"), pure("c"), pure("d"), pure("e")
             ).yield((a, b, c, d, e) -> String.join("-", a, b, c, d, e));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("a-b-c-d-e", result);
         }
@@ -211,7 +211,7 @@ class ForComprehensionTest {
                 pure(1), pure(2), pure(3), pure(4), pure(5)
             ).yieldEff((a, b, c, d, e) -> pure(a + b + c + d + e));
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(15, result);
         }
@@ -228,7 +228,7 @@ class ForComprehensionTest {
                 pure(1), pure(2), pure(3), pure(4), pure(5), pure(6)
             ).yield((a, b, c, d, e, f) -> a + b + c + d + e + f);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(21, result);
         }
@@ -240,7 +240,7 @@ class ForComprehensionTest {
                 pure("1"), pure("2"), pure("3"), pure("4"), pure("5"), pure("6")
             ).yieldEff((a, b, c, d, e, f) -> pure(a + b + c + d + e + f));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("123456", result);
         }
@@ -259,7 +259,7 @@ class ForComprehensionTest {
             ).yield((a, b, c, d, e, f, g) ->
                 String.format("Week: %s,%s,%s,%s,%s,%s,%s", a, b, c, d, e, f, g));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("Week: Mon,Tue,Wed,Thu,Fri,Sat,Sun", result);
         }
@@ -271,7 +271,7 @@ class ForComprehensionTest {
                 pure(1), pure(2), pure(3), pure(4), pure(5), pure(6), pure(7)
             ).yieldEff((a, b, c, d, e, f, g) -> pure(a + b + c + d + e + f + g));
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(28, result);
         }
@@ -289,7 +289,7 @@ class ForComprehensionTest {
                 pure(5), pure(6), pure(7), pure(8)
             ).yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(36, result);
         }
@@ -303,7 +303,7 @@ class ForComprehensionTest {
             ).yieldEff((a, b, c, d, e, f, g, h) ->
                 pure(String.join("", a, b, c, d, e, f, g, h)));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("abcdefgh", result);
         }
@@ -324,7 +324,7 @@ class ForComprehensionTest {
                 of(() -> { order.add(8); return 8; })
             ).yield((a, b, c, d, e, f, g, h) -> a + b + c + d + e + f + g + h);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(36, result);
             assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8), order);
@@ -344,7 +344,7 @@ class ForComprehensionTest {
                 pure(42)
             ).yield((a, b, c) -> c);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(42, result);
             assertEquals(2, logHandler.size());
@@ -362,7 +362,7 @@ class ForComprehensionTest {
             ).yield((num, str, bool) ->
                 String.format("num=%d, str=%s, bool=%b", num, str, bool));
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("num=42, str=hello, bool=true", result);
         }
@@ -376,7 +376,7 @@ class ForComprehensionTest {
             Eff<Integer> second = For(first, pure(5))
                 .yield((x, y) -> x * y);
 
-            Integer result = second.runWith(runtime);
+            Integer result = runtime.run(second);
 
             assertEquals(150, result); // (10 + 20) * 5
         }
@@ -387,7 +387,7 @@ class ForComprehensionTest {
             Eff<String> computation = For(pure((String) null), pure("test"))
                 .yield((a, b) -> b);
 
-            String result = computation.runWith(runtime);
+            String result = runtime.run(computation);
 
             assertEquals("test", result);
         }
@@ -404,7 +404,7 @@ class ForComprehensionTest {
                     ).yield((h, v) -> h);
                 });
 
-            Double result = computation.runWith(runtime);
+            Double result = runtime.run(computation);
 
             assertEquals(5.0, result, 0.001);
             assertTrue(logHandler.containsMessagePart("Hypotenuse: 5.0"));
@@ -419,7 +419,7 @@ class ForComprehensionTest {
                 perform(new CounterEffect.Get())
             ).yield((a, b, c) -> c);
 
-            Integer result = computation.runWith(runtime);
+            Integer result = runtime.run(computation);
 
             assertEquals(2, result);
         }

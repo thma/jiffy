@@ -1,26 +1,23 @@
 package org.jiffy.core;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
  * Eff monad for composing and handling effects.
- * This provides a way to build computation pipelines that involve effects.
+ * This is a pure data structure representing effectful computations.
+ * It describes WHAT to do, not HOW to do it - interpretation is external via EffectRunner.
  *
  * @param <A> The type of value this Eff produces
  */
-public abstract class Eff<A> {
+public abstract sealed class Eff<A> permits
+        Eff.Pure, Eff.Perform, Eff.FlatMap, Eff.Lazy,
+        Eff.Parallel, Eff.Recover, Eff.RecoverWith {
 
     // Private constructor to ensure controlled instantiation
     private Eff() {}
-
-    /**
-     * Run this effect with the provided runtime.
-     */
-    public abstract A runWith(EffectRuntime runtime);
 
     /**
      * Map over the value produced by this effect.
@@ -162,17 +159,21 @@ public abstract class Eff<A> {
         return new For8<>(effA, effB, effC, effD, effE, effF, effG, effH);
     }
 
-    // Implementation classes
+    // ========================================================================
+    // Implementation classes - public for pattern matching in EffectRunner
+    // ========================================================================
 
-    private static class Pure<A> extends Eff<A> {
+    /**
+     * A pure value wrapped in Eff.
+     */
+    public static final class Pure<A> extends Eff<A> {
         private final A value;
 
         Pure(A value) {
             this.value = value;
         }
 
-        @Override
-        public A runWith(EffectRuntime runtime) {
+        public A value() {
             return value;
         }
 
@@ -182,59 +183,65 @@ public abstract class Eff<A> {
         }
     }
 
-    private static class Perform<A> extends Eff<A> {
+    /**
+     * An effect to be performed.
+     */
+    public static final class Perform<A> extends Eff<A> {
         private final Effect<A> effect;
 
         Perform(Effect<A> effect) {
             this.effect = effect;
         }
 
-        @Override
-        public A runWith(EffectRuntime runtime) {
-            return runtime.handle(effect);
+        public Effect<A> effect() {
+            return effect;
         }
 
         @Override
         public <B> Eff<B> flatMap(Function<A, Eff<B>> f) {
             return new FlatMap<>(this, f);
         }
-
-        public Effect<A> getEffect() {
-            return effect;
-        }
     }
 
-    private static class FlatMap<A, B> extends Eff<B> {
-        private final Eff<A> source;
-        private final Function<A, Eff<B>> f;
+    /**
+     * A monadic bind (flatMap) operation.
+     */
+    public static final class FlatMap<X, A> extends Eff<A> {
+        private final Eff<X> source;
+        private final Function<X, Eff<A>> continuation;
 
-        FlatMap(Eff<A> source, Function<A, Eff<B>> f) {
+        FlatMap(Eff<X> source, Function<X, Eff<A>> continuation) {
             this.source = source;
-            this.f = f;
+            this.continuation = continuation;
+        }
+
+        public Eff<X> source() {
+            return source;
+        }
+
+        public Function<X, Eff<A>> continuation() {
+            return continuation;
         }
 
         @Override
-        public B runWith(EffectRuntime runtime) {
-            A a = source.runWith(runtime);
-            return f.apply(a).runWith(runtime);
-        }
-
-        @Override
-        public <C> Eff<C> flatMap(Function<B, Eff<C>> g) {
-            return source.flatMap(a -> f.apply(a).flatMap(g));
+        public <B> Eff<B> flatMap(Function<A, Eff<B>> g) {
+            // Associativity: source.flatMap(f).flatMap(g) == source.flatMap(x -> f(x).flatMap(g))
+            return source.flatMap(x -> continuation.apply(x).flatMap(g));
         }
     }
 
-    private static class Lazy<A> extends Eff<A> {
+    /**
+     * A lazily evaluated effect.
+     */
+    public static final class Lazy<A> extends Eff<A> {
         private final Supplier<A> supplier;
 
         Lazy(Supplier<A> supplier) {
             this.supplier = supplier;
         }
 
-        @Override
-        public A runWith(EffectRuntime runtime) {
-            return supplier.get();
+        public Supplier<A> supplier() {
+            return supplier;
         }
 
         @Override
@@ -243,7 +250,10 @@ public abstract class Eff<A> {
         }
     }
 
-    private static class Parallel<A, B> extends Eff<Pair<A, B>> {
+    /**
+     * Parallel execution of two effects.
+     */
+    public static final class Parallel<A, B> extends Eff<Pair<A, B>> {
         private final Eff<A> effA;
         private final Eff<B> effB;
 
@@ -252,16 +262,12 @@ public abstract class Eff<A> {
             this.effB = effB;
         }
 
-        @Override
-        public Pair<A, B> runWith(EffectRuntime runtime) {
-            CompletableFuture<A> futureA = CompletableFuture.supplyAsync(() -> effA.runWith(runtime));
-            CompletableFuture<B> futureB = CompletableFuture.supplyAsync(() -> effB.runWith(runtime));
+        public Eff<A> effA() {
+            return effA;
+        }
 
-            try {
-                return new Pair<>(futureA.get(), futureB.get());
-            } catch (Exception e) {
-                throw new RuntimeException("Error in parallel execution", e);
-            }
+        public Eff<B> effB() {
+            return effB;
         }
 
         @Override
@@ -270,7 +276,10 @@ public abstract class Eff<A> {
         }
     }
 
-    private static class Recover<A> extends Eff<A> {
+    /**
+     * Error recovery with a pure recovery function.
+     */
+    public static final class Recover<A> extends Eff<A> {
         private final Eff<A> source;
         private final Function<Throwable, A> recovery;
 
@@ -279,13 +288,12 @@ public abstract class Eff<A> {
             this.recovery = recovery;
         }
 
-        @Override
-        public A runWith(EffectRuntime runtime) {
-            try {
-                return source.runWith(runtime);
-            } catch (Throwable t) {
-                return recovery.apply(t);
-            }
+        public Eff<A> source() {
+            return source;
+        }
+
+        public Function<Throwable, A> recovery() {
+            return recovery;
         }
 
         @Override
@@ -294,7 +302,10 @@ public abstract class Eff<A> {
         }
     }
 
-    private static class RecoverWith<A> extends Eff<A> {
+    /**
+     * Error recovery with an effectful recovery function.
+     */
+    public static final class RecoverWith<A> extends Eff<A> {
         private final Eff<A> source;
         private final Function<Throwable, Eff<A>> recovery;
 
@@ -303,13 +314,12 @@ public abstract class Eff<A> {
             this.recovery = recovery;
         }
 
-        @Override
-        public A runWith(EffectRuntime runtime) {
-            try {
-                return source.runWith(runtime);
-            } catch (Throwable t) {
-                return recovery.apply(t).runWith(runtime);
-            }
+        public Eff<A> source() {
+            return source;
+        }
+
+        public Function<Throwable, Eff<A>> recovery() {
+            return recovery;
         }
 
         @Override
@@ -344,7 +354,8 @@ public abstract class Eff<A> {
     }
 
     /**
-     * Collect all effects in this computation (for testing).
+     * Collect all effects in this computation (for inspection/testing).
+     * Note: This only collects statically visible effects, not those in continuations.
      */
     public List<Effect<?>> collectEffects() {
         List<Effect<?>> effects = new ArrayList<>();
@@ -354,18 +365,23 @@ public abstract class Eff<A> {
 
     private void collectEffectsInternal(List<Effect<?>> effects) {
         switch (this) {
-            case Perform<?> perform -> effects.add(perform.getEffect());
-            case FlatMap<?, ?> flatMap -> flatMap.source.collectEffectsInternal(effects);
+            case Perform<?> perform -> effects.add(perform.effect());
+            case FlatMap<?, ?> flatMap -> flatMap.source().collectEffectsInternal(effects);
             case Parallel<?, ?> parallel -> {
-                parallel.effA.collectEffectsInternal(effects);
-                parallel.effB.collectEffectsInternal(effects);
+                parallel.effA().collectEffectsInternal(effects);
+                parallel.effB().collectEffectsInternal(effects);
             }
+            case Recover<?> recover -> recover.source().collectEffectsInternal(effects);
+            case RecoverWith<?> recoverWith -> recoverWith.source().collectEffectsInternal(effects);
             default -> {
+                // Pure and Lazy have no effects to collect
             }
         }
     }
 
+    // ========================================================================
     // For comprehension classes
+    // ========================================================================
 
     /**
      * For comprehension with one effect.
