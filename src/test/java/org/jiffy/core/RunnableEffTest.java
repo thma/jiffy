@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.jiffy.core.Eff.*;
@@ -108,14 +107,14 @@ class RunnableEffTest {
     class AsynchronousRun {
 
         @Test
-        @DisplayName("returns CompletableFuture")
-        void runAsync_returnsCompletableFuture() {
+        @DisplayName("returns StructuredFuture")
+        void runAsync_returnsStructuredFuture() {
             RunnableEff<Integer> runnable = new RunnableEff<>(pure(42), runtime);
 
-            CompletableFuture<Integer> future = runnable.runAsync();
+            StructuredFuture<Integer> future = runnable.runAsync();
 
             assertNotNull(future);
-            assertInstanceOf(CompletableFuture.class, future);
+            assertInstanceOf(StructuredFuture.class, future);
         }
 
         @Test
@@ -123,8 +122,8 @@ class RunnableEffTest {
         void runAsync_completesWithCorrectValue() throws Exception {
             RunnableEff<Integer> runnable = new RunnableEff<>(pure(42), runtime);
 
-            CompletableFuture<Integer> future = runnable.runAsync();
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            StructuredFuture<Integer> future = runnable.runAsync();
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(42, result);
         }
@@ -137,8 +136,8 @@ class RunnableEffTest {
 
             RunnableEff<Integer> runnable = new RunnableEff<>(program, runtime);
 
-            CompletableFuture<Integer> future = runnable.runAsync();
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            StructuredFuture<Integer> future = runnable.runAsync();
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(1, result);
         }
@@ -234,8 +233,8 @@ class RunnableEffTest {
         @Test
         @DisplayName("fluent chain: prepare().runAsync()")
         void fluentChain_prepareRunAsync() throws Exception {
-            CompletableFuture<Integer> future = runtime.prepare(pure(42)).runAsync();
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            StructuredFuture<Integer> future = runtime.prepare(pure(42)).runAsync();
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(42, result);
         }

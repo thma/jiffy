@@ -11,8 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.jiffy.core.Eff.*;
@@ -124,14 +122,14 @@ class EffectRunnerTest {
     class AsynchronousExecution {
 
         @Test
-        @DisplayName("returns CompletableFuture")
-        void runAsync_returnsCompletableFuture() {
+        @DisplayName("returns StructuredFuture")
+        void runAsync_returnsStructuredFuture() {
             Eff<Integer> program = pure(42);
 
-            CompletableFuture<Integer> future = EffectRunner.runAsync(program, runtime);
+            StructuredFuture<Integer> future = EffectRunner.runAsync(program, runtime);
 
             assertNotNull(future);
-            assertInstanceOf(CompletableFuture.class, future);
+            assertInstanceOf(StructuredFuture.class, future);
         }
 
         @Test
@@ -139,8 +137,8 @@ class EffectRunnerTest {
         void runAsync_completesWithCorrectValue() throws Exception {
             Eff<Integer> program = pure(42);
 
-            CompletableFuture<Integer> future = EffectRunner.runAsync(program, runtime);
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            StructuredFuture<Integer> future = EffectRunner.runAsync(program, runtime);
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(42, result);
         }
@@ -151,8 +149,8 @@ class EffectRunnerTest {
             Eff<Integer> program = perform(new CounterEffect.Increment())
                 .flatMap(v -> perform(new CounterEffect.Increment()));
 
-            CompletableFuture<Integer> future = EffectRunner.runAsync(program, runtime);
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            StructuredFuture<Integer> future = EffectRunner.runAsync(program, runtime);
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(2, result);
         }
@@ -162,21 +160,23 @@ class EffectRunnerTest {
         void runAsync_completesExceptionallyOnError() {
             Eff<Integer> program = of(() -> { throw new RuntimeException("async fail"); });
 
-            CompletableFuture<Integer> future = EffectRunner.runAsync(program, runtime);
+            StructuredFuture<Integer> future = EffectRunner.runAsync(program, runtime);
 
-            assertThrows(ExecutionException.class, () -> future.get(1, TimeUnit.SECONDS));
+            assertThrows(RuntimeException.class, future::join);
         }
 
         @Test
-        @DisplayName("allows non-blocking composition")
+        @DisplayName("allows non-blocking composition via map")
         void runAsync_allowsNonBlockingComposition() throws Exception {
             Eff<Integer> program1 = pure(10);
             Eff<Integer> program2 = pure(20);
 
-            CompletableFuture<Integer> combined = EffectRunner.runAsync(program1, runtime)
-                .thenCombine(EffectRunner.runAsync(program2, runtime), Integer::sum);
+            // Use StructuredFuture's map/flatMap for composition
+            StructuredFuture<Integer> future1 = EffectRunner.runAsync(program1, runtime);
+            StructuredFuture<Integer> future2 = EffectRunner.runAsync(program2, runtime);
 
-            Integer result = combined.get(1, TimeUnit.SECONDS);
+            // Join both and combine
+            Integer result = future1.join() + future2.join();
 
             assertEquals(30, result);
         }

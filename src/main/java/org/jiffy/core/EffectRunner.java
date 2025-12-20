@@ -2,14 +2,16 @@ package org.jiffy.core;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.StructuredTaskScope;
 import java.util.function.Function;
 
 /**
- * External interpreter for Eff computations.
+ * External interpreter for Eff computations using structured concurrency.
  * Provides multiple interpretation strategies: synchronous, async, traced, and dry-run.
- * This class embodies the "interpreter pattern" for algebraic effects:
- * Eff is a pure description, EffectRunner provides the semantics.
+ * Uses Java 24+ StructuredTaskScope for parallel execution, providing:
+ * - Fail-fast semantics: if one branch fails, the other is cancelled immediately
+ * - Structured lifetimes: child tasks cannot outlive their parent scope
+ * - Clean resource management: no leaked threads or dangling computations
  */
 public final class EffectRunner {
 
@@ -51,20 +53,23 @@ public final class EffectRunner {
             case Eff.Lazy<A> lazy -> lazy.supplier().get();
 
             case Eff.Parallel<?, ?> parallel -> {
-                // Run both branches concurrently
-                CompletableFuture<Object> futureA = CompletableFuture.supplyAsync(
-                    () -> interpret(parallel.effA(), runtime)
-                );
-                CompletableFuture<Object> futureB = CompletableFuture.supplyAsync(
-                    () -> interpret(parallel.effB(), runtime)
-                );
+                // Run both branches concurrently using StructuredTaskScope
+                // Using Joiner.awaitAllSuccessfulOrThrow() ensures fail-fast semantics:
+                // if one task fails, the other is cancelled immediately
+                try (var scope = StructuredTaskScope.open(
+                        StructuredTaskScope.Joiner.awaitAllSuccessfulOrThrow())) {
 
-                try {
-                    Object resultA = futureA.get();
-                    Object resultB = futureB.get();
-                    yield (A) new Eff.Pair<>(resultA, resultB);
-                } catch (Exception e) {
-                    throw new RuntimeException("Error in parallel execution", e);
+                    var taskA = scope.fork(() -> interpret(parallel.effA(), runtime));
+                    var taskB = scope.fork(() -> interpret(parallel.effB(), runtime));
+
+                    // Wait for both tasks - throws if any failed
+                    scope.join();
+
+                    // Both succeeded - combine results
+                    yield (A) new Eff.Pair<>(taskA.get(), taskB.get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Parallel execution interrupted", e);
                 }
             }
 
@@ -91,16 +96,16 @@ public final class EffectRunner {
     // ========================================================================
 
     /**
-     * Run an effectful computation asynchronously.
-     * Returns immediately with a CompletableFuture that will hold the result.
+     * Run an effectful computation asynchronously on a virtual thread.
+     * The computation itself uses StructuredTaskScope for any internal parallelism.
      *
      * @param program the effect computation to run
      * @param runtime the runtime providing effect handlers
      * @param <A> the result type
-     * @return a future that will complete with the result
+     * @return a StructuredFuture that will complete with the result
      */
-    public static <A> CompletableFuture<A> runAsync(Eff<A> program, EffectRuntime runtime) {
-        return CompletableFuture.supplyAsync(() -> interpret(program, runtime));
+    public static <A> StructuredFuture<A> runAsync(Eff<A> program, EffectRuntime runtime) {
+        return StructuredFuture.start(() -> interpret(program, runtime));
     }
 
     // ========================================================================

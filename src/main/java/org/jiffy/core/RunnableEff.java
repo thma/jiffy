@@ -1,7 +1,6 @@
 package org.jiffy.core;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * A prepared effectful computation ready for execution.
@@ -25,11 +24,12 @@ public record RunnableEff<A>(Eff<A> program, EffectRuntime runtime) {
     }
 
     /**
-     * Run the computation asynchronously.
+     * Run the computation asynchronously on a virtual thread.
+     * Uses StructuredTaskScope internally for any parallel operations.
      *
-     * @return a future that will complete with the result
+     * @return a StructuredFuture that will complete with the result
      */
-    public CompletableFuture<A> runAsync() {
+    public StructuredFuture<A> runAsync() {
         return EffectRunner.runAsync(program, runtime);
     }
 

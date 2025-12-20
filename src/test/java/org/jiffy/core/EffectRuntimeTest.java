@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.jiffy.core.Eff.*;
@@ -282,14 +281,14 @@ class EffectRuntimeTest {
     class ProgramExecutionRunAsync {
 
         @Test
-        @DisplayName("runAsync() returns CompletableFuture")
-        void runAsync_returnsCompletableFuture() {
+        @DisplayName("runAsync() returns StructuredFuture")
+        void runAsync_returnsStructuredFuture() {
             EffectRuntime runtime = EffectRuntime.builder().build();
 
-            CompletableFuture<Integer> future = runtime.runAsync(pure(42));
+            StructuredFuture<Integer> future = runtime.runAsync(pure(42));
 
             assertNotNull(future);
-            assertInstanceOf(CompletableFuture.class, future);
+            assertInstanceOf(StructuredFuture.class, future);
         }
 
         @Test
@@ -297,8 +296,8 @@ class EffectRuntimeTest {
         void runAsync_completesWithResult() throws Exception {
             EffectRuntime runtime = EffectRuntime.builder().build();
 
-            CompletableFuture<Integer> future = runtime.runAsync(pure(42));
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            StructuredFuture<Integer> future = runtime.runAsync(pure(42));
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(42, result);
         }
@@ -311,10 +310,10 @@ class EffectRuntimeTest {
                 .withHandler(CounterEffect.class, handler)
                 .build();
 
-            CompletableFuture<Integer> future = runtime.runAsync(
+            StructuredFuture<Integer> future = runtime.runAsync(
                 perform(new CounterEffect.Increment())
             );
-            Integer result = future.get(1, TimeUnit.SECONDS);
+            Integer result = future.join(1, TimeUnit.SECONDS);
 
             assertEquals(1, result);
         }

@@ -3,7 +3,6 @@ package org.jiffy.core;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Runtime for executing effects with registered handlers.
@@ -34,13 +33,14 @@ public class EffectRuntime {
     }
 
     /**
-     * Run an effectful computation asynchronously.
+     * Run an effectful computation asynchronously on a virtual thread.
+     * Uses StructuredTaskScope internally for any parallel operations.
      *
      * @param program the effect computation to run
      * @param <A> the result type
-     * @return a future that will complete with the result
+     * @return a StructuredFuture that will complete with the result
      */
-    public <A> CompletableFuture<A> runAsync(Eff<A> program) {
+    public <A> StructuredFuture<A> runAsync(Eff<A> program) {
         return EffectRunner.runAsync(program, this);
     }
 
