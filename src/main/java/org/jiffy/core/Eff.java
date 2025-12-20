@@ -205,6 +205,8 @@ public abstract sealed class Eff<A> permits
 
     /**
      * A monadic bind (flatMap) operation.
+     * Note: flatMap just wraps in another FlatMap rather than applying monad associativity eagerly.
+     * This makes construction O(1) and stack-safe. The interpreter handles the nested structure.
      */
     public static final class FlatMap<X, A> extends Eff<A> {
         private final Eff<X> source;
@@ -225,8 +227,9 @@ public abstract sealed class Eff<A> permits
 
         @Override
         public <B> Eff<B> flatMap(Function<A, Eff<B>> g) {
-            // Associativity: source.flatMap(f).flatMap(g) == source.flatMap(x -> f(x).flatMap(g))
-            return source.flatMap(x -> continuation.apply(x).flatMap(g));
+            // Don't apply monad law eagerly - just wrap. Interpreter handles nested FlatMaps.
+            // This makes construction stack-safe for arbitrarily long chains.
+            return new FlatMap<>(this, g);
         }
     }
 

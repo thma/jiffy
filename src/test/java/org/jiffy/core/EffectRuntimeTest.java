@@ -416,4 +416,104 @@ class EffectRuntimeTest {
         }
     }
 
+    @Nested
+    @DisplayName("Stack Safety")
+    class StackSafety {
+
+        @Test
+        @DisplayName("run() handles deep FlatMap chains without stack overflow")
+        void run_handlesDeepFlatMapChains() {
+            CounterHandler handler = new CounterHandler();
+            EffectRuntime runtime = EffectRuntime.builder()
+                .withHandler(CounterEffect.class, handler)
+                .build();
+
+            // Build a chain of 10,000 flatMaps - would overflow with recursive impl
+            int depth = 10_000;
+            Eff<Integer> program = pure(0);
+            for (int i = 0; i < depth; i++) {
+                program = program.flatMap(n -> pure(n + 1));
+            }
+
+            Integer result = runtime.run(program);
+
+            assertEquals(depth, result);
+        }
+
+        @Test
+        @DisplayName("run() handles deep effectful FlatMap chains")
+        void run_handlesDeepEffectfulFlatMapChains() {
+            CounterHandler handler = new CounterHandler();
+            EffectRuntime runtime = EffectRuntime.builder()
+                .withHandler(CounterEffect.class, handler)
+                .build();
+
+            // Build chain with actual effects
+            int depth = 5_000;
+            Eff<Integer> program = perform(new CounterEffect.Increment());
+            for (int i = 1; i < depth; i++) {
+                program = program.flatMap(_ -> perform(new CounterEffect.Increment()));
+            }
+
+            Integer result = runtime.run(program);
+
+            assertEquals(depth, result);
+            assertEquals(depth, handler.getCurrentValue());
+        }
+
+        @Test
+        @DisplayName("runTraced() handles deep FlatMap chains without stack overflow")
+        void runTraced_handlesDeepFlatMapChains() {
+            CollectingLogHandler handler = new CollectingLogHandler();
+            EffectRuntime runtime = EffectRuntime.builder()
+                .withHandler(LogEffect.class, handler)
+                .build();
+
+            // Build chain with logging effects
+            int depth = 5_000;
+            Eff<Void> program = perform(new LogEffect.Info("0"));
+            for (int i = 1; i < depth; i++) {
+                final int idx = i;
+                program = program.flatMap(_ -> perform(new LogEffect.Info(String.valueOf(idx))));
+            }
+
+            Traced<Void> traced = runtime.runTraced(program);
+
+            assertEquals(depth, traced.effectCount());
+            assertEquals(depth, handler.size());
+        }
+
+        @Test
+        @DisplayName("runAsync() handles deep FlatMap chains without stack overflow")
+        void runAsync_handlesDeepFlatMapChains() throws Exception {
+            EffectRuntime runtime = EffectRuntime.builder().build();
+
+            int depth = 10_000;
+            Eff<Integer> program = pure(0);
+            for (int i = 0; i < depth; i++) {
+                program = program.flatMap(n -> pure(n + 1));
+            }
+
+            StructuredFuture<Integer> future = runtime.runAsync(program);
+            Integer result = future.join(5, TimeUnit.SECONDS);
+
+            assertEquals(depth, result);
+        }
+
+        @Test
+        @DisplayName("construction of deep FlatMap chains is stack-safe")
+        void construction_isStackSafe() {
+            // This test verifies that building the chain itself doesn't overflow
+            // (the old implementation would overflow during construction)
+            int depth = 50_000;
+            Eff<Integer> program = pure(0);
+            for (int i = 0; i < depth; i++) {
+                program = program.flatMap(n -> pure(n + 1));
+            }
+
+            // If we got here without StackOverflowError, construction is safe
+            assertNotNull(program);
+        }
+    }
+
 }

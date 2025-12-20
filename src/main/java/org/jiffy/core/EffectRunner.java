@@ -1,6 +1,8 @@
 package org.jiffy.core;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.Function;
@@ -12,6 +14,8 @@ import java.util.function.Function;
  * - Fail-fast semantics: if one branch fails, the other is cancelled immediately
  * - Structured lifetimes: child tasks cannot outlive their parent scope
  * - Clean resource management: no leaked threads or dangling computations
+ * The interpreter is stack-safe: FlatMap chains of arbitrary depth are processed
+ * iteratively using an explicit continuation stack, avoiding StackOverflowError.
  */
 public final class EffectRunner {
 
@@ -35,60 +39,102 @@ public final class EffectRunner {
         return interpret(program, runtime);
     }
 
+    /**
+     * Stack-safe interpreter using explicit continuation stack.
+     * Handles arbitrarily deep FlatMap chains without stack overflow.
+     */
     @SuppressWarnings("unchecked")
     private static <A> A interpret(Eff<A> program, EffectRuntime runtime) {
-        return switch (program) {
-            case Eff.Pure<A> pure -> pure.value();
+        // Continuation stack - functions waiting for results
+        Deque<Function<Object, Eff<?>>> continuations = new ArrayDeque<>();
+        Eff<?> current = program;
 
-            case Eff.Perform<A> perform -> runtime.handle(perform.effect());
+        while (true) {
+            switch (current) {
+                case Eff.Pure<?> pure -> {
+                    Object result = pure.value();
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
 
-            case Eff.FlatMap<?, A> flatMap -> {
-                // Run the source computation
-                Object sourceResult = interpret(flatMap.source(), runtime);
-                // Apply continuation and interpret the result
-                Function<Object, Eff<A>> continuation = (Function<Object, Eff<A>>) flatMap.continuation();
-                yield interpret(continuation.apply(sourceResult), runtime);
-            }
+                case Eff.Perform<?> perform -> {
+                    Object result = runtime.handle(perform.effect());
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
 
-            case Eff.Lazy<A> lazy -> lazy.supplier().get();
+                case Eff.FlatMap<?, ?> flatMap -> {
+                    // Push continuation onto stack, continue with source
+                    continuations.push((Function<Object, Eff<?>>) flatMap.continuation());
+                    current = flatMap.source();
+                }
 
-            case Eff.Parallel<?, ?> parallel -> {
-                // Run both branches concurrently using StructuredTaskScope
-                // Using Joiner.awaitAllSuccessfulOrThrow() ensures fail-fast semantics:
-                // if one task fails, the other is cancelled immediately
-                try (var scope = StructuredTaskScope.open(
-                        StructuredTaskScope.Joiner.awaitAllSuccessfulOrThrow())) {
+                case Eff.Lazy<?> lazy -> {
+                    Object result = lazy.supplier().get();
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
 
-                    var taskA = scope.fork(() -> interpret(parallel.effA(), runtime));
-                    var taskB = scope.fork(() -> interpret(parallel.effB(), runtime));
+                case Eff.Parallel<?, ?> parallel -> {
+                    // Each branch runs in its own virtual thread with its own interpreter loop
+                    try (var scope = StructuredTaskScope.open(
+                            StructuredTaskScope.Joiner.awaitAllSuccessfulOrThrow())) {
 
-                    // Wait for both tasks - throws if any failed
-                    scope.join();
+                        var taskA = scope.fork(() -> interpret(parallel.effA(), runtime));
+                        var taskB = scope.fork(() -> interpret(parallel.effB(), runtime));
 
-                    // Both succeeded - combine results
-                    yield (A) new Eff.Pair<>(taskA.get(), taskB.get());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Parallel execution interrupted", e);
+                        scope.join();
+
+                        Object result = new Eff.Pair<>(taskA.get(), taskB.get());
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Parallel execution interrupted", e);
+                    }
+                }
+
+                case Eff.Recover<?> recover -> {
+                    // Recover uses try-catch semantics - recursive call is fine since
+                    // the inner interpret is stack-safe for FlatMap chains
+                    try {
+                        Object result = interpret(recover.source(), runtime);
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    } catch (Throwable t) {
+                        Object result = recover.recovery().apply(t);
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    }
+                }
+
+                case Eff.RecoverWith<?> recoverWith -> {
+                    // RecoverWith: on error, recovery produces an Eff to continue with
+                    try {
+                        Object result = interpret(recoverWith.source(), runtime);
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    } catch (Throwable t) {
+                        // Recovery produces a new Eff - continue processing it
+                        current = recoverWith.recovery().apply(t);
+                    }
                 }
             }
-
-            case Eff.Recover<A> recover -> {
-                try {
-                    yield interpret(recover.source(), runtime);
-                } catch (Throwable t) {
-                    yield recover.recovery().apply(t);
-                }
-            }
-
-            case Eff.RecoverWith<A> recoverWith -> {
-                try {
-                    yield interpret(recoverWith.source(), runtime);
-                } catch (Throwable t) {
-                    yield interpret(recoverWith.recovery().apply(t), runtime);
-                }
-            }
-        };
+        }
     }
 
     // ========================================================================
@@ -127,48 +173,86 @@ public final class EffectRunner {
         return new Traced<>(result, log);
     }
 
+    /**
+     * Stack-safe traced interpreter using explicit continuation stack.
+     */
     @SuppressWarnings("unchecked")
     private static <A> A interpretTraced(Eff<A> program, EffectRuntime runtime, List<Effect<?>> log) {
-        return switch (program) {
-            case Eff.Pure<A> pure -> pure.value();
+        Deque<Function<Object, Eff<?>>> continuations = new ArrayDeque<>();
+        Eff<?> current = program;
 
-            case Eff.Perform<A> perform -> {
-                log.add(perform.effect());
-                yield runtime.handle(perform.effect());
-            }
+        while (true) {
+            switch (current) {
+                case Eff.Pure<?> pure -> {
+                    Object result = pure.value();
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
 
-            case Eff.FlatMap<?, A> flatMap -> {
-                Object sourceResult = interpretTraced(flatMap.source(), runtime, log);
-                Function<Object, Eff<A>> continuation = (Function<Object, Eff<A>>) flatMap.continuation();
-                yield interpretTraced(continuation.apply(sourceResult), runtime, log);
-            }
+                case Eff.Perform<?> perform -> {
+                    log.add(perform.effect());
+                    Object result = runtime.handle(perform.effect());
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
 
-            case Eff.Lazy<A> lazy -> lazy.supplier().get();
+                case Eff.FlatMap<?, ?> flatMap -> {
+                    continuations.push((Function<Object, Eff<?>>) flatMap.continuation());
+                    current = flatMap.source();
+                }
 
-            case Eff.Parallel<?, ?> parallel -> {
-                // For tracing, we run sequentially to maintain log order
-                // (parallel tracing would require thread-safe log and merge strategy)
-                Object resultA = interpretTraced(parallel.effA(), runtime, log);
-                Object resultB = interpretTraced(parallel.effB(), runtime, log);
-                yield (A) new Eff.Pair<>(resultA, resultB);
-            }
+                case Eff.Lazy<?> lazy -> {
+                    Object result = lazy.supplier().get();
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
 
-            case Eff.Recover<A> recover -> {
-                try {
-                    yield interpretTraced(recover.source(), runtime, log);
-                } catch (Throwable t) {
-                    yield recover.recovery().apply(t);
+                case Eff.Parallel<?, ?> parallel -> {
+                    // For tracing, run sequentially to maintain log order
+                    Object resultA = interpretTraced(parallel.effA(), runtime, log);
+                    Object resultB = interpretTraced(parallel.effB(), runtime, log);
+                    Object result = new Eff.Pair<>(resultA, resultB);
+                    if (continuations.isEmpty()) {
+                        return (A) result;
+                    }
+                    current = continuations.pop().apply(result);
+                }
+
+                case Eff.Recover<?> recover -> {
+                    try {
+                        Object result = interpretTraced(recover.source(), runtime, log);
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    } catch (Throwable t) {
+                        Object result = recover.recovery().apply(t);
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    }
+                }
+
+                case Eff.RecoverWith<?> recoverWith -> {
+                    try {
+                        Object result = interpretTraced(recoverWith.source(), runtime, log);
+                        if (continuations.isEmpty()) {
+                            return (A) result;
+                        }
+                        current = continuations.pop().apply(result);
+                    } catch (Throwable t) {
+                        current = recoverWith.recovery().apply(t);
+                    }
                 }
             }
-
-            case Eff.RecoverWith<A> recoverWith -> {
-                try {
-                    yield interpretTraced(recoverWith.source(), runtime, log);
-                } catch (Throwable t) {
-                    yield interpretTraced(recoverWith.recovery().apply(t), runtime, log);
-                }
-            }
-        };
+        }
     }
 
     // ========================================================================
