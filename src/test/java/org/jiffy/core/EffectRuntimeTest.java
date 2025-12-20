@@ -247,7 +247,7 @@ class EffectRuntimeTest {
 
             Integer result = runtime.run(
                 perform(new CounterEffect.Increment())
-                    .flatMap(v -> perform(new CounterEffect.Increment()))
+                    .flatMap(_ -> perform(new CounterEffect.Increment()))
             );
 
             assertEquals(2, result);
@@ -267,7 +267,7 @@ class EffectRuntimeTest {
                 perform(new LogEffect.Info("starting")),
                 perform(new CounterEffect.Increment()),
                 perform(new CounterEffect.Increment())
-            ).yield((log, c1, c2) -> "result: " + c2);
+            ).yield((_, _, c2) -> "result: " + c2);
 
             String result = runtime.run(program);
 
@@ -364,8 +364,8 @@ class EffectRuntimeTest {
 
             Traced<Void> traced = runtime.runTraced(
                 perform(new LogEffect.Info("A"))
-                    .flatMap(v -> perform(new LogEffect.Warning("B")))
-                    .flatMap(v -> perform(new LogEffect.Error("C")))
+                    .flatMap(_ -> perform(new LogEffect.Warning("B")))
+                    .flatMap(_ -> perform(new LogEffect.Error("C")))
             );
 
             List<Effect<?>> log = traced.effectLog();
@@ -416,51 +416,4 @@ class EffectRuntimeTest {
         }
     }
 
-    @Nested
-    @DisplayName("Program Execution - prepare()")
-    class ProgramExecutionPrepare {
-
-        @Test
-        @DisplayName("prepare() returns RunnableEff")
-        void prepare_returnsRunnableEff() {
-            EffectRuntime runtime = EffectRuntime.builder().build();
-            Eff<Integer> program = pure(42);
-
-            RunnableEff<Integer> runnable = runtime.prepare(program);
-
-            assertNotNull(runnable);
-            assertSame(program, runnable.program());
-            assertSame(runtime, runnable.runtime());
-        }
-
-        @Test
-        @DisplayName("prepare().run() executes program")
-        void prepare_run_executesProgram() {
-            CounterHandler handler = new CounterHandler();
-            EffectRuntime runtime = EffectRuntime.builder()
-                .withHandler(CounterEffect.class, handler)
-                .build();
-
-            Integer result = runtime.prepare(
-                perform(new CounterEffect.Increment())
-            ).run();
-
-            assertEquals(1, result);
-        }
-
-        @Test
-        @DisplayName("prepare().runTraced() returns traced result")
-        void prepare_runTraced_returnsTracedResult() {
-            CollectingLogHandler handler = new CollectingLogHandler();
-            EffectRuntime runtime = EffectRuntime.builder()
-                .withHandler(LogEffect.class, handler)
-                .build();
-
-            Traced<Void> traced = runtime.prepare(
-                perform(new LogEffect.Info("test"))
-            ).runTraced();
-
-            assertEquals(1, traced.effectCount());
-        }
-    }
 }

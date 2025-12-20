@@ -13,6 +13,7 @@ Jiffy is a lightweight library that brings algebraic effects to Java with compil
 - 🏗️ **Spring-friendly** - Integrates well with Spring Boot applications
 - ⚡ **Minimal overhead** - Efficient runtime with direct handler dispatch
 - 🧪 **Multiple execution modes** - Sync, async, traced, and dry-run
+- 🧵 **Structured concurrency** - Uses Java 25 virtual threads and StructuredTaskScope
 
 ## Demo Project
 
@@ -146,13 +147,25 @@ User user = runtime.run(findUser(123L));
 
 ### Asynchronous Execution
 
-```java
-// Returns immediately with a CompletableFuture
-CompletableFuture<User> future = runtime.runAsync(findUser(123L));
+Jiffy uses Java 25's virtual threads and `StructuredTaskScope` for efficient async execution:
 
-// Compose multiple async operations
-CompletableFuture<Report> report = runtime.runAsync(fetchUser(id))
-    .thenCombine(runtime.runAsync(fetchOrders(id)), this::generateReport);
+```java
+// Returns immediately with a StructuredFuture (runs on virtual thread)
+StructuredFuture<User> future = runtime.runAsync(findUser(123L));
+
+// Block and wait for result
+User user = future.join();
+
+// Wait with timeout
+User user = future.join(5, TimeUnit.SECONDS);
+
+// Compose async operations
+StructuredFuture<Report> report = runtime.runAsync(fetchUser(id))
+    .flatMap(user -> runtime.runAsync(fetchOrders(user.id()))
+    .map(orders -> generateReport(user, orders)));
+
+// Interop with CompletableFuture when needed
+CompletableFuture<User> cf = future.toCompletableFuture();
 ```
 
 ### Traced Execution
@@ -185,20 +198,6 @@ List<Effect<?>> effects = runtime.dryRun(findUser(123L));
 System.out.println("This program would perform: " + effects);
 ```
 
-### Fluent API with prepare()
-
-For a more fluent style at the "edge of the world":
-
-```java
-// Prepare returns a RunnableEff with multiple execution options
-RunnableEff<User> prepared = runtime.prepare(findUser(123L));
-
-User user = prepared.run();                    // sync
-CompletableFuture<User> future = prepared.runAsync();  // async
-Traced<User> traced = prepared.runTraced();    // traced
-List<Effect<?>> effects = prepared.dryRun();   // dry run
-```
-
 ## Advanced Features
 
 ### For Comprehensions
@@ -216,6 +215,8 @@ Eff<CustomerReport> report = Eff.For(
 ```
 
 ### Parallel Effects
+
+Run effects concurrently using `StructuredTaskScope` under the hood:
 
 ```java
 Eff.parallel(
@@ -274,7 +275,7 @@ Jiffy follows a clean separation between effect description and interpretation:
 │  │              │    │  matching)   │    │           │  │
 │  └──────────────┘    └──────────────┘    └───────────┘  │
 │                                                          │
-│  run() | runAsync() | runTraced() | dryRun() | prepare()│
+│         run() | runAsync() | runTraced() | dryRun()      │
 └─────────────────────────────────────────────────────────┘
 ```
 

@@ -11,8 +11,9 @@
     </annotationProcessing>
   </component>
   <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_STRING" value="--enable-preview" />
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="jiffy" options="" />
+      <module name="jiffy" options="--enable-preview" />
     </option>
   </component>
 </project>

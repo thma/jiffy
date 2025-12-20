@@ -66,18 +66,6 @@ public class EffectRuntime {
         return EffectRunner.dryRun(program);
     }
 
-    /**
-     * Prepare an effectful computation for execution.
-     * Returns a RunnableEff that provides a fluent API for running the program.
-     *
-     * @param program the effect computation to prepare
-     * @param <A> the result type
-     * @return a RunnableEff ready for execution
-     */
-    public <A> RunnableEff<A> prepare(Eff<A> program) {
-        return new RunnableEff<>(program, this);
-    }
-
     // ========================================================================
     // Effect Handling (Low-level)
     // ========================================================================
