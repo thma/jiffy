@@ -14,6 +14,7 @@ Jiffy is a lightweight library that brings algebraic effects to Java with compil
 - ⚡ **Minimal overhead** - Efficient runtime with direct handler dispatch
 - 🧪 **Multiple execution modes** - Sync, async, traced, and dry-run
 - 🧵 **Structured concurrency** - Uses Java 25 virtual threads and StructuredTaskScope
+- 🛡️ **Stack-safe** - Handles arbitrarily deep effect chains without stack overflow
 
 ## Demo Project
 
@@ -250,6 +251,26 @@ Eff.andThen(
 );
 ```
 
+### Stack-Safe Execution
+
+Jiffy's interpreter uses an iterative algorithm with an explicit continuation stack, making it safe for arbitrarily deep effect chains:
+
+```java
+// This works fine - no StackOverflowError!
+Eff<Integer> program = Eff.pure(0);
+for (int i = 0; i < 100_000; i++) {
+    program = program.flatMap(n -> Eff.pure(n + 1));
+}
+Integer result = runtime.run(program);  // Returns 100000
+```
+
+This is essential for:
+- **Stream processing** - Processing large collections with `flatMap`
+- **Recursive patterns** - Paginated API calls, tree traversals
+- **Long-running workflows** - Business processes with many steps
+
+The implementation avoids Java's lack of tail-call optimization by converting recursion to iteration internally.
+
 ## Architecture
 
 Jiffy follows a clean separation between effect description and interpretation:
@@ -271,8 +292,8 @@ Jiffy follows a clean separation between effect description and interpretation:
 │                                                          │
 │  ┌──────────────┐    ┌──────────────┐    ┌───────────┐  │
 │  │  Handlers    │    │ Interpreter  │    │ Execution │  │
-│  │              │◀───│ (pattern     │───▶│ Modes     │  │
-│  │              │    │  matching)   │    │           │  │
+│  │              │◀───│ (stack-safe  │───▶│ Modes     │  │
+│  │              │    │  iterative)  │    │           │  │
 │  └──────────────┘    └──────────────┘    └───────────┘  │
 │                                                          │
 │         run() | runAsync() | runTraced() | dryRun()      │
@@ -298,5 +319,5 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 ## Acknowledgments
 
 - Inspired by algebraic effects in Haskell and OCaml
-- Similar projects: [Jeff](https://github.com/lpld/jeff)
+- Similar projects: [Jeff](https://github.com/lpld/jeff), [Roux](https://github.com/CajunSystems/roux)
 - Built for the Java community with ❤️
